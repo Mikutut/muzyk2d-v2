@@ -2,9 +2,9 @@
 	import { version as M2DVersion } from "./package.json";
 	import { config as dotenvConfig } from "dotenv";
 	import { EmbedField, MessageEmbed } from "discord.js";
-	import { M2D_EConfigErrorSubtypes } from "config";
-	import { M2D_ELogErrorSubtypes, M2D_LogUtils } from "log";
-import { M2D_EClientErrorSubtypes } from "client";
+	import { M2D_EConfigErrorSubtypes } from "./config";
+	import { M2D_ELogErrorSubtypes, M2D_LogUtils } from "./log";
+import { M2D_EClientErrorSubtypes } from "./client";
 //#endregion
 
 //#region Types

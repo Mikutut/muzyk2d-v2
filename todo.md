@@ -56,7 +56,7 @@
 - [ ] Add standard exit handler:
   - [ ] Close all existing audio streams (playbacks)
   - [ ] Disconnect Muzyk2D from voice channel before leaving
-- [ ] Add "SIGINT" and "SIGTERM" handlers
+- [x] Add "SIGINT" and "SIGTERM" handlers
 
 ---
 

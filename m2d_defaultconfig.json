@@ -5,6 +5,7 @@
 		"description": "Prefiks, stosowany do oznaczania komend",
 		"value": "!m",
 		"overridable": true,
+		"overrideOnly": false,
 		"guildOverrides": []
 	},
 	{
@@ -13,6 +14,7 @@
 		"description": "Minimalna ilość członków na kanale głosowym, przy której Muzyk2D nie opuszcza samodzielnie kanału",
 		"value": "1",
 		"overridable": true,
+		"overrideOnly": false,
 		"guildOverrides": []
 	},
 	{
@@ -21,6 +23,7 @@
 		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
 		"value":"300",
 		"overridable": true,
+		"overrideOnly": false,
 		"guildOverrides": []
 	},
 	{
@@ -29,6 +32,7 @@
 		"description": "Maksymalna wielkość playlisty",
 		"value": "30",
 		"overridable": false,
+		"overrideOnly": false,
 		"guildOverrides": []
 	},
 	{
@@ -37,6 +41,7 @@
 		"description": "Ilość czasu (w sekundach), po którym Muzyk2D automatycznie wyczyści cache metadanych z API YouTube'a",
 		"value": "7200",
 		"overridable": false,
+		"overrideOnly": false,
 		"guildOverrides": []
 	}
 ]

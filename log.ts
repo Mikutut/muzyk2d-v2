@@ -1,5 +1,5 @@
 //#region Imports
-	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError, M2D_IGeneralNoEnvVariableError } from "utils";
+	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError, M2D_IGeneralNoEnvVariableError } from "./utils";
 	import * as fs from "fs/promises";
 	import * as path from "path";
 import { readJsonConfigFile } from "typescript";
@@ -27,9 +27,9 @@ import { readJsonConfigFile } from "typescript";
 const M2D_LogUtils = {
 	logMessage: (type: M2D_LogMessageType, message: string) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
-		const outputMessage = `[ ${type.toUpperCase()} ]\t|\t${timestamp}\t|\t${message}\n`;
+		const outputMessage = `[ ${type.toUpperCase()} ] | ${timestamp} |\t${message}`;
 
-		fs.appendFile(M2D_LogFileLocation, outputMessage)
+		fs.appendFile(M2D_LogFileLocation, `${outputMessage}\n`)
 			.catch((err) => {
 				console.error(`Message was not logged to log file! Error: "${err.message}"`);
 			})
@@ -53,9 +53,9 @@ const M2D_LogUtils = {
 	}),
 	logMultipleMessages: (type: M2D_LogMessageType, ...messages: string[]) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
-		const outputMessages = messages.map((v) => `[ ${type.toUpperCase()} ]\t|\t${timestamp}\t|\t${v}\n`);
+		const outputMessages = messages.map((v) => `[ ${type.toUpperCase()} ] | ${timestamp} |\t${v}${(messages.indexOf(v) !== (messages.length - 1)) ? "\n" : ""}`);
 
-		fs.appendFile(M2D_LogFileLocation, outputMessages.join(""))
+		fs.appendFile(M2D_LogFileLocation, `${outputMessages.join("")}\n`)
 			.catch((err) => {
 				console.error(`Message was not logged to log file! Error: "${err.message}"`);
 			})

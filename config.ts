@@ -1,6 +1,6 @@
 //#region Imports
-	import { M2D_LogUtils } from "log";
-	import { M2D_GeneralUtils, M2D_IGeneralNoEnvVariableError, M2D_IError, M2D_EErrorTypes } from "utils";
+	import { M2D_LogUtils } from "./log";
+	import { M2D_GeneralUtils, M2D_IGeneralNoEnvVariableError, M2D_IError, M2D_EErrorTypes } from "./utils";
 	import * as fs from "fs/promises";
 //#endregion
 
@@ -15,6 +15,7 @@
 		description: string;
 		value: string;
 		overridable: boolean;
+		overrideOnly: boolean;
 		guildOverrides: M2D_IConfigGuildEntry[];
 	}
 	//#region Error types
@@ -22,6 +23,7 @@
 			Filesystem = "FILESYSTEM",
 			MissingKey = "MISSING_KEY",
 			KeyNotOverridable = "KEY_NOT_OVERRIDABLE",
+			KeyOverrideOnly = "KEY_OVERRIDE_ONLY",
 			OverrideNotPresent = "OVERRIDE_NOT_PRESENT"
 		};
 		interface M2D_IConfigFilesystemError extends M2D_IError {
@@ -44,6 +46,11 @@
 			data: {
 				key: string;
 				guildId: string;
+			}
+		}
+		interface M2D_IConfigKeyOverrideOnlyError extends M2D_IError {
+			data: {
+				key: string;
 			}
 		}
 	//#endregion
@@ -130,7 +137,20 @@ const M2D_ConfigUtils = {
 
 		if(configEntry) {
 			M2D_LogUtils.logMessage("info", `Znaleziono wartość konfiguracyjną o kluczu "${key}"!`)
-				.then(() => res(configEntry.value));
+				.then(() => {
+					if(!configEntry.overrideOnly) {
+						res(configEntry.value);
+					} else {
+						M2D_LogUtils.logMessage("error", `Próbowano odczytać wartość konfiguracyjną o kluczu "${key}", lecz wartość ta jest tylko zastępowywalna!`)
+							.then(() => rej({
+								type: M2D_EErrorTypes.Config,
+								subtype: M2D_EConfigErrorSubtypes.KeyOverrideOnly,
+								data: {
+									key
+								}
+							} as M2D_IConfigKeyOverrideOnlyError));
+					}
+				});
 		} else { 
 			M2D_LogUtils.logMessage("error", `Próbowano uzyskać dostęp do wartości konfiguracyjnej o kluczu "${key}", lecz wartość taka nie istnieje!`)
 				.then(() => 
