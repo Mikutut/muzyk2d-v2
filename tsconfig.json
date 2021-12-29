@@ -1,7 +1,6 @@
 {
 	"compilerOptions": {
-		"baseUrl": ".",
-		"rootDir": ".",
+		"baseUrl": "./",
 		"strict": true,
 		"noImplicitAny": true,
 		"checkJs": true,

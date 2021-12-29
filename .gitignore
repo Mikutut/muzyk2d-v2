@@ -4,3 +4,5 @@ node_modules/
 /*.js
 .vscode
 *.bak
+*.log
+m2d_config.json

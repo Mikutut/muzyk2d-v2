@@ -6,6 +6,16 @@
   - [ ] Provide base interfaces as well as extensions for each type of error
   - [ ] Attach error handler to each command that will be invoked on command failure
   - [ ] Utilize try/catch blocks wherever possible
+- [x] Implement better logging:
+  - [x] Implement saving logs to file
+  - [x] Implement different types of logs (errors, successes, info etc.)
+  - [x] Implement different styles for different types of logs
+  - [x] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
+- [ ] Implement separate bot configuration:
+  - [ ] Keep read-on-runtime-only values inside .env file
+  - [ ] Add global config - applies for every guild
+  - [ ] Add local configs for each guild
+  - [ ] Add global values' overrides for each guild
 - [ ] Implement commands interpreter:
   - [ ] Define commands/prefix/alias schema
   - [ ] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
@@ -15,16 +25,6 @@
   - [ ] Implement incorrect parameters handling
   - [ ] Make global commands list
   - [ ] Implement dev-only/not invokable by chat commands
-- [ ] Implement separate bot configuration:
-  - [ ] Keep read-on-runtime-only values inside .env file
-  - [ ] Add global config - applies for every guild
-  - [ ] Add local configs for each guild
-  - [ ] Add global values' overrides for each guild
-- [ ] Implement better logging:
-  - [ ] Implement saving logs to file
-  - [ ] Implement different types of logs (errors, successes, info etc.)
-  - [ ] Implement different styles for different types of logs
-  - [ ] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
 - [ ] Implement voice features:
   - [ ] Implement joining/leaving voice channels
   - [ ] Implement proper voice connection handling:
@@ -43,6 +43,8 @@
     - [ ] Implement utility functions (adding/deleting playlist entries, flushing playlist etc.)
     - [ ] Implement bot state awareness (active/idle)
     - [ ] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
+    - [ ] Make "add" command automatically play entry if playlist was empty
+  - [ ] Make "play" command automatically join bot to the voice channel
 - [ ] Implement Rich Presence
 - [ ] Implement status change
 - [ ] Design Muzyk2D documentation:
@@ -51,6 +53,10 @@
   - [ ] Utilities
   - [ ] Environmental variables
   - [ ] Commands
+- [ ] Add standard exit handler:
+  - [ ] Close all existing audio streams (playbacks)
+  - [ ] Disconnect Muzyk2D from voice channel before leaving
+- [ ] Add "SIGINT" and "SIGTERM" handlers
 
 ---
 
