@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"rootDir": ".",
+		"strict": true,
+		"noImplicitAny": true,
+		"checkJs": true,
+		"allowJs": true,
+		"target": "ESNext",
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"module": "commonjs",
+		"moduleResolution": "Node",
+		"skipLibCheck": true,
+	},
+	"include": [
+		"./**.ts"
+	],
+	"exclude": [
+		"node_modules/**/*"
+	]
+}
