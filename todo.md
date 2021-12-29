@@ -12,7 +12,7 @@
   - [x] Implement different styles for different types of logs
   - [x] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
 - [ ] Implement separate bot configuration:
-  - [ ] Keep read-on-runtime-only values inside .env file
+  - [x] Keep read-on-runtime-only values inside .env file
   - [ ] Add global config - applies for every guild
   - [ ] Add local configs for each guild
   - [ ] Add global values' overrides for each guild
