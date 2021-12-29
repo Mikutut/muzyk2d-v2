@@ -1,56 +1,57 @@
 //#region Imports
-import { version as M2DVersion } from "./package.json";
-import { config as dotenvConfig } from "dotenv";
-import { EmbedField, MessageEmbed } from "discord.js";
-import { M2D_EConfigErrorSubtypes } from "config";
-import { M2D_ELogErrorSubtypes } from "log";
+	import { version as M2DVersion } from "./package.json";
+	import { config as dotenvConfig } from "dotenv";
+	import { EmbedField, MessageEmbed } from "discord.js";
+	import { M2D_EConfigErrorSubtypes } from "config";
+	import { M2D_ELogErrorSubtypes, M2D_LogUtils } from "log";
+import { M2D_EClientErrorSubtypes } from "client";
 //#endregion
 
 //#region Types
-const enum M2D_EErrorTypes {
-	General = "GENERAL",
-	Commands = "COMMANDS",
-	Client = "CLIENT",
-	Config = "CONFIG",
-	Log = "LOG",
-	Voice = "VOICE",
-	Playback = "PLAYBACK",
-	Playlist = "PLAYLIST",
-	YouTubeAPI = "YOUTUBEAPI",
-	Unknown = "UNKNOWN"
-};
-const enum M2D_EGeneralErrorSubtypes {
-	NoEnvVariable = "NO_ENV_VARIABLE"
-};
-type M2D_ErrorSubtypes = "UNKNOWN" | M2D_EGeneralErrorSubtypes | M2D_EConfigErrorSubtypes | M2D_ELogErrorSubtypes;
-interface M2D_IError {
-	type: M2D_EErrorTypes;
-	subtype: M2D_ErrorSubtypes;
-	data: Record<string, any> | null;
-};
-
-//#region General error interfaces
-interface M2D_IUnknownError extends M2D_IError {
-	data: {
-		errorData: unknown;
-	}
-};
-interface M2D_IGeneralNoEnvVariableError extends M2D_IError {
-	data: {
-		envVariable: string;
+	const enum M2D_EErrorTypes {
+		General = "GENERAL",
+		Commands = "COMMANDS",
+		Client = "CLIENT",
+		Config = "CONFIG",
+		Log = "LOG",
+		Voice = "VOICE",
+		Playback = "PLAYBACK",
+		Playlist = "PLAYLIST",
+		YouTubeAPI = "YOUTUBEAPI",
+		Unknown = "UNKNOWN"
 	};
-};
-//#endregion
+	type M2D_ErrorSubtypes = "UNKNOWN" | M2D_EGeneralErrorSubtypes | M2D_EConfigErrorSubtypes | M2D_ELogErrorSubtypes | M2D_EClientErrorSubtypes;
+	interface M2D_IError {
+		type: M2D_EErrorTypes;
+		subtype: M2D_ErrorSubtypes;
+		data: Record<string, any>;
+	};
 
-type M2D_EmbedType = "info" | "success" | "error";
-interface M2D_IEmbedOptions {
-	title?: string;
-	description: string;
-	type: M2D_EmbedType;
-	imageURL?: string;
-	thumbnailURL?: string;
-	fields?: EmbedField[];
-}
+	//#region Error types
+		const enum M2D_EGeneralErrorSubtypes {
+			NoEnvVariable = "NO_ENV_VARIABLE"
+		};
+		interface M2D_IUnknownError extends M2D_IError {
+			data: {
+				errorData: unknown;
+			}
+		};
+		interface M2D_IGeneralNoEnvVariableError extends M2D_IError {
+			data: {
+				envVariable: string;
+			};
+		};
+	//#endregion
+
+	type M2D_EmbedType = "info" | "success" | "error";
+	interface M2D_IEmbedOptions {
+		title?: string;
+		description: string;
+		type: M2D_EmbedType;
+		imageURL?: string;
+		thumbnailURL?: string;
+		fields?: EmbedField[];
+	}
 //#endregion
 
 dotenvConfig();
@@ -93,6 +94,11 @@ const M2D_GeneralUtils = {
 		embed.setFooter(`Muzyk2D - v${M2D_GeneralUtils.getMuzyk2DVersion()}`);
 		
 		return embed;
+	},
+	exitHandler: (exitCode: number) => {
+		M2D_LogUtils.logMessage("info", "Rozpoczęto proces wyłączania...")
+			.then(() => M2D_LogUtils.logMessage("success", "Zakończono proces wyłączania!"))
+			.then(() => process.exit(exitCode));
 	}
 };
 

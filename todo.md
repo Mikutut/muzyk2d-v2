@@ -11,11 +11,11 @@
   - [x] Implement different types of logs (errors, successes, info etc.)
   - [x] Implement different styles for different types of logs
   - [x] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
-- [ ] Implement separate bot configuration:
+- [x] Implement separate bot configuration:
   - [x] Keep read-on-runtime-only values inside .env file
-  - [ ] Add global config - applies for every guild
-  - [ ] Add local configs for each guild
-  - [ ] Add global values' overrides for each guild
+  - [x] Add global config - applies for every guild
+  - [x] Add local configs for each guild
+  - [x] Add global values' overrides for each guild
 - [ ] Implement commands interpreter:
   - [ ] Define commands/prefix/alias schema
   - [ ] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
