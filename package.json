@@ -5,10 +5,9 @@
     "main": "index.js",
     "private": true,
     "scripts": {
-        "compile": "tsc",
+        "build": "tsc",
         "rm-js": "rm -rf ./*.js",
         "start-dev": "tsc && node .",
-        "start-js": "node index.js",
 				"start": "node .",
         "lint": "eslint . --ext .ts"
     },

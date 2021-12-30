@@ -17,14 +17,13 @@
   - [x] Add local configs for each guild
   - [x] Add global values' overrides for each guild
 - [ ] Implement commands interpreter:
-  - [ ] Define commands/prefix/alias schema
+  - [x] Define commands/prefix/alias schema
   - [ ] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
-  - [ ] Implement aliases handling
-  - [ ] Implement missing command handling
-  - [ ] Implement insufficient parameters handling
-  - [ ] Implement incorrect parameters handling
-  - [ ] Make global commands list
-  - [ ] Implement dev-only/not invokable by chat commands
+  - [x] Implement aliases handling
+  - [x] Implement missing command handling
+  - [x] Implement insufficient parameters handling
+  - [x] Make global commands list
+  - [x] Implement dev-only/not invokable by chat commands
 - [ ] Implement voice features:
   - [ ] Implement joining/leaving voice channels
   - [ ] Implement proper voice connection handling:
@@ -56,6 +55,7 @@
 - [ ] Add standard exit handler:
   - [ ] Close all existing audio streams (playbacks)
   - [ ] Disconnect Muzyk2D from voice channel before leaving
+  - [x] Save current configuration to file
 - [x] Add "SIGINT" and "SIGTERM" handlers
 
 ---

@@ -27,7 +27,7 @@ import { readJsonConfigFile } from "typescript";
 const M2D_LogUtils = {
 	logMessage: (type: M2D_LogMessageType, message: string) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
-		const outputMessage = `[ ${type.toUpperCase()} ] | ${timestamp} |\t${message}`;
+		const outputMessage = `${type.toUpperCase()} | ${timestamp} | ${message}`;
 
 		fs.appendFile(M2D_LogFileLocation, `${outputMessage}\n`)
 			.catch((err) => {
@@ -53,7 +53,7 @@ const M2D_LogUtils = {
 	}),
 	logMultipleMessages: (type: M2D_LogMessageType, ...messages: string[]) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
-		const outputMessages = messages.map((v) => `[ ${type.toUpperCase()} ] | ${timestamp} |\t${v}${(messages.indexOf(v) !== (messages.length - 1)) ? "\n" : ""}`);
+		const outputMessages = messages.map((v) => `${type.toUpperCase()} | ${timestamp} | ${v}${(messages.indexOf(v) !== (messages.length - 1)) ? "\n" : ""}`);
 
 		fs.appendFile(M2D_LogFileLocation, `${outputMessages.join("")}\n`)
 			.catch((err) => {
@@ -89,19 +89,8 @@ const M2D_LogUtils = {
 				console.log(`Nie znaleziono zmiennej środowiskowej M2D_LOG_FILE - ustawianie domyślnej wartości ("${M2D_LogFileLocation}")...`);
 			})
 			.finally(() => {
-				fs.access(M2D_LogFileLocation)
-					.then(() => M2D_LogUtils.logMessage("success", "Zainicjalizowano logi!")
-						.then(() => res())
-						.catch((logMessage_errData) => rej(logMessage_errData))
-					)
-					.catch((err) => rej({
-						type: M2D_EErrorTypes.Log,
-						subtype: M2D_ELogErrorSubtypes.Filesystem,
-						data: {
-							errorMessage: err.message,
-							path: M2D_LogFileLocation
-						}
-					} as M2D_ILogFilesystemError));
+				M2D_LogUtils.logMessage("success", "Zainicjalizowano logi!")
+					.then(() => res());
 			});
 	})
 };

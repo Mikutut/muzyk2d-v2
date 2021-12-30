@@ -62,6 +62,16 @@
 //#endregion
 
 const M2D_ConfigUtils = {
+	isConfigValueSet: (key: string) => new Promise<boolean>((res, rej) => {
+		M2D_ConfigUtils.getConfigValue(key)
+			.then((val) => res(val.length > 0))
+			.catch((err) => rej(err));
+	}),
+	isConfigValueOverrideSet: (guildId: string, key: string) => new Promise<boolean>((res, rej) => {
+		M2D_ConfigUtils.getConfigOverrideValue(guildId, key)
+			.then((val) => res(val.length > 0))
+			.catch((err) => rej(err));	
+	}),
 	getConfigValue: (key: string, guildId?: string) => new Promise<string>((res, rej) => {
 		if(guildId) {
 			M2D_ConfigUtils.getConfigOverrideValue(guildId, key)
@@ -212,15 +222,7 @@ const M2D_ConfigUtils = {
 				);
 		}
 	}),
-	initConfigCapabilities: () => new Promise<void>((res, rej) => {
-		M2D_GeneralUtils.getEnvVar("CONFIG_FILE")
-			.then((getEnvVar_retData) => M2D_LogUtils.logMessage("info", `Znaleziono zmienną środowiskową "M2D_CONFIG_FILE" - stosowanie się do jej wartości...`)
-				.then(() => {
-					M2D_ConfigFileLocation = getEnvVar_retData;
-				})
-			)
-			.catch((getEnvVar_errData: M2D_IGeneralNoEnvVariableError) => M2D_LogUtils.logMessage("warn", `Nie znaleziono zmiennej środowiskowej "M2D_CONFIG_FILE" - stosowanie domyślnej wartości...`))
-			.finally(() => {
+	readConfigFile: () => new Promise<void>((res, rej) => {
 				fs.readFile(M2D_ConfigFileLocation, {
 					encoding: "utf-8",
 					flag: "r"
@@ -230,30 +232,105 @@ const M2D_ConfigUtils = {
 							M2D_CONFIG = JSON.parse(data);
 							res();
 						}))
-					.catch(err => M2D_LogUtils.logMessage("warn", "Nie udało się wczytać pliku konfiguracyjnego - wczytywanie domyślnej konfiguracji...")
+					.catch(err => M2D_LogUtils.logMessage("error", `Nie udało się wczytać konfiguracji z pliku "${M2D_ConfigFileLocation}"`)
+						.then(() => rej({
+							type: M2D_EErrorTypes.Config,
+							subtype: M2D_EConfigErrorSubtypes.Filesystem,
+							data: {
+								errorMessage: err.message,
+								path: M2D_ConfigFileLocation
+							}
+						} as M2D_IConfigFilesystemError))
+					);
+	}),
+	readDefaultConfigFile: () => new Promise<void>((res, rej) => {
+				fs.readFile("m2d_defaultconfig.json", {
+					encoding: "utf-8",
+					flag: "r"
+				})
+					.then((data: string) => M2D_LogUtils.logMessage("success", "Pomyślnie wczytano domyślny plik konfiguracyjny!")
 						.then(() => {
-							fs.readFile("m2d_defaultconfig.json", {
-								encoding: "utf-8",
-								flag: "r"
-							})
-								.then((data) => M2D_LogUtils.logMessage("success", "Pomyślnie wczytano domyślną konfigurację!")
-									.then(() => {
-										M2D_CONFIG = JSON.parse(data);
-										res();
-									}))
-								.catch((err) => M2D_LogUtils.logMessage("error", "Nie udało się wczytać domyślnej konfiguracji!")
-									.then(() => {
-										rej({
-											type: M2D_EErrorTypes.Config,
-											subtype: M2D_EConfigErrorSubtypes.Filesystem,
-											data: {
-												errorMessage: err.message,
-												path: "m2d_defaultconfig.json"
-											}
-										} as M2D_IConfigFilesystemError);
-									}));
-						}));
+							M2D_CONFIG = JSON.parse(data);
+							res();
+						}))
+					.catch(err => M2D_LogUtils.logMessage("error", `Nie udało się wczytać konfiguracji z domyślnego pliku konfiguracyjnego!`)
+						.then(() => rej({
+							type: M2D_EErrorTypes.Config,
+							subtype: M2D_EConfigErrorSubtypes.Filesystem,
+							data: {
+								errorMessage: err.message,
+								path: "m2d_defaultconfig.json"
+							}
+						} as M2D_IConfigFilesystemError))
+					);
+	}),
+	saveConfigToFile: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage("info", "Zainicjowano zapis konfiguracji do pliku...")
+			.then(() => {
+				fs.writeFile(M2D_ConfigFileLocation, JSON.stringify(M2D_CONFIG), {
+					encoding: "utf-8"
+				})
+					.then(() => {
+						M2D_LogUtils.logMessage("success", `Pomyślnie zapisano konfigurację do "${M2D_ConfigFileLocation}"`)
+							.then(() => res());
+					})
+					.catch((err) => {
+						M2D_LogUtils.logMessage("error", `Nie udało się zapisać konfiguracji do "${M2D_ConfigFileLocation}"`)
+							.then(() => rej({
+								type: M2D_EErrorTypes.Config,
+								subtype: M2D_EConfigErrorSubtypes.Filesystem,
+								data: {
+									errorMessage: err.message,
+									path: M2D_ConfigFileLocation
+								}
+							} as M2D_IConfigFilesystemError));
+					})
 			});
+	}),
+	initConfigCapabilities: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie konfiguracji...`)
+			.then(() => M2D_GeneralUtils.getEnvVar("CONFIG_FILE")
+				.then((getEnvVar_retData) => M2D_LogUtils.logMessage("info", `Znaleziono zmienną środowiskową "M2D_CONFIG_FILE" - stosowanie się do jej wartości...`)
+					.then(() => {
+						M2D_ConfigFileLocation = getEnvVar_retData;
+					})
+				)
+				.catch((getEnvVar_errData: M2D_IGeneralNoEnvVariableError) => M2D_LogUtils.logMessage("warn", `Nie znaleziono zmiennej środowiskowej "M2D_CONFIG_FILE" - stosowanie domyślnej wartości...`))
+				.finally(() => {
+					M2D_GeneralUtils.getEnvVar("FORCE_READ_DEFAULT_CONFIG")
+						.then((val) => {
+							if(val === "true") {
+								M2D_LogUtils.logMessage(`info`, `Wymuszono wczytanie domyślnej konfiguracji poprzez zmienną środowiskową.`)
+									.then(() => {
+										M2D_ConfigUtils.readDefaultConfigFile()
+											.then(() => {
+												M2D_LogUtils.logMessage(`success`, `Zainicjalizowano konfigurację!`)
+													.then(() => res());
+											})
+											.catch((err) => rej(err));
+									});
+							} else {
+								M2D_ConfigUtils.readConfigFile()
+									.then(() => {
+										M2D_LogUtils.logMessage(`success`, `Zainicjalizowano konfigurację!`)
+											.then(() => res());
+									})
+									.catch(() => {
+										M2D_LogUtils.logMessage(`warn`, `Nie udało się wczytać konfiguracji z pliku "${M2D_ConfigFileLocation}". Wczytywanie domyślnej konfiguracji...`)
+											.then(() => {
+												M2D_ConfigUtils.readDefaultConfigFile()
+													.then(() => {
+														M2D_LogUtils.logMessage(`success`, `Zainicjalizowano konfigurację!`)
+															.then(() => res());
+													})
+													.catch((err) => rej(err));
+											});
+									});
+							}
+						})
+						.catch((err) => rej(err));
+				})
+			);
 	})
 };
 

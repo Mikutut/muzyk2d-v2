@@ -2,9 +2,26 @@
 	import { version as M2DVersion } from "./package.json";
 	import { config as dotenvConfig } from "dotenv";
 	import { EmbedField, MessageEmbed } from "discord.js";
-	import { M2D_EConfigErrorSubtypes } from "./config";
-	import { M2D_ELogErrorSubtypes, M2D_LogUtils } from "./log";
-import { M2D_EClientErrorSubtypes } from "./client";
+	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, 
+		M2D_IConfigFilesystemError, 
+		M2D_IConfigMissingKeyError, 
+		M2D_IConfigKeyNotOverridableError } from "./config";
+	import { M2D_ELogErrorSubtypes, M2D_LogUtils, 
+		M2D_ILogFilesystemError } from "./log";
+	import { M2D_EClientErrorSubtypes, 
+		M2D_IClientDiscordAPIError,
+		M2D_IClientMessageInvalidError } from "./client";
+	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, 
+		M2D_ICommandsMissingCommandError, 
+		M2D_ICommandsInsufficientParametersError, 
+		M2D_ICommandsMissingSuppParametersError, 
+		M2D_ICommandsMissingAliasError, 
+		M2D_ICommandsMissingCategoryError, 
+		M2D_ICommandsMissingParameterError,
+		M2D_ICommandsCommandDeveloperOnlyError, 
+		M2D_ICommandsCommandNotInvokableInChatError,
+		M2D_ICommandsNoCommandsInCategoryError,
+		M2D_ICommandsCommandNotActiveError } from "./commands";
 //#endregion
 
 //#region Types
@@ -20,12 +37,35 @@ import { M2D_EClientErrorSubtypes } from "./client";
 		YouTubeAPI = "YOUTUBEAPI",
 		Unknown = "UNKNOWN"
 	};
-	type M2D_ErrorSubtypes = "UNKNOWN" | M2D_EGeneralErrorSubtypes | M2D_EConfigErrorSubtypes | M2D_ELogErrorSubtypes | M2D_EClientErrorSubtypes;
+	type M2D_ErrorSubtypes = "UNKNOWN" |
+		M2D_EGeneralErrorSubtypes |
+		M2D_EConfigErrorSubtypes |
+		M2D_ELogErrorSubtypes |
+		M2D_EClientErrorSubtypes |
+		M2D_ECommandsErrorSubtypes;
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
 		data: Record<string, any>;
 	};
+	type M2D_Error = M2D_IUnknownError |
+		M2D_IGeneralNoEnvVariableError |
+		M2D_IConfigFilesystemError |
+		M2D_IConfigMissingKeyError |
+		M2D_IConfigKeyNotOverridableError |
+		M2D_IClientDiscordAPIError |
+		M2D_IClientMessageInvalidError |
+		M2D_ILogFilesystemError |
+		M2D_ICommandsMissingCommandError |
+		M2D_ICommandsInsufficientParametersError |
+		M2D_ICommandsMissingSuppParametersError |
+		M2D_ICommandsMissingAliasError |
+		M2D_ICommandsMissingCategoryError |
+		M2D_ICommandsMissingParameterError | 
+		M2D_ICommandsCommandDeveloperOnlyError |
+		M2D_ICommandsCommandNotInvokableInChatError |
+		M2D_ICommandsNoCommandsInCategoryError |
+		M2D_ICommandsCommandNotActiveError;
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
@@ -69,6 +109,14 @@ const M2D_GeneralUtils = {
 			}
 		} as M2D_IGeneralNoEnvVariableError);
 	}),
+	isDevModeEnabled: () => new Promise<boolean>((res, rej) => {
+		M2D_GeneralUtils.getEnvVar("DEV_MODE")
+			.then((val) => {
+				if(val === "true") res(true);
+				else res(false);
+			})
+			.catch(() => res(false));
+	}),
 	embedBuilder: (options: M2D_IEmbedOptions): MessageEmbed => {
 		const embed = new MessageEmbed();
 
@@ -97,8 +145,17 @@ const M2D_GeneralUtils = {
 	},
 	exitHandler: (exitCode: number) => {
 		M2D_LogUtils.logMessage("info", "Rozpoczęto proces wyłączania...")
+			.then(() => M2D_LogUtils.logMessage("info", `Zapisywanie konfiguracji do pliku...`)
+				.then(() => M2D_ConfigUtils.saveConfigToFile())
+				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas zapisywania konfiguracji do pliku!`, `Typ błędu: "${err.type}"`, `Podtyp błędu: "${err.subtype}"`, `Dane o błędzie: "${JSON.stringify(err.data, null, 4)}"`))
+			)
 			.then(() => M2D_LogUtils.logMessage("success", "Zakończono proces wyłączania!"))
 			.then(() => process.exit(exitCode));
+	},
+	getErrorString: (error: M2D_Error): string => {
+		if(error.type !== M2D_EErrorTypes.Unknown) {
+			return `${error.type}_${error.subtype}`;
+		} else return `UNKNOWN`;
 	}
 };
 
@@ -109,7 +166,8 @@ export type {
 	M2D_IGeneralNoEnvVariableError,
 	M2D_IEmbedOptions,
 	M2D_EmbedType,
-	M2D_IUnknownError
+	M2D_IUnknownError,
+	M2D_Error
 };
 export {
 	M2D_EErrorTypes,
