@@ -1,47 +1,22 @@
 [
 	{
 		"name": "prefix",
-		"label": "Prefiks",
-		"description": "Prefiks, stosowany do oznaczania komend",
-		"value": "!m",
-		"overridable": true,
-		"overrideOnly": false,
-		"guildOverrides": []
+		"value": "!m"
 	},
 	{
 		"name": "minVCMembers",
-		"label": "minCzłonkówNaVC",
-		"description": "Minimalna ilość członków na kanale głosowym, przy której Muzyk2D nie opuszcza samodzielnie kanału",
-		"value": "1",
-		"overridable": true,
-		"overrideOnly": false,
-		"guildOverrides": []
+		"value": "1"
 	},
 	{
 		"name": "timeout",
-		"label": "timeout",
-		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
-		"value":"300",
-		"overridable": true,
-		"overrideOnly": false,
-		"guildOverrides": []
+		"value": "300"
 	},
 	{
 		"name": "maxPlaylistSize",
-		"label": "maksWielkośćPlaylisty",
-		"description": "Maksymalna wielkość playlisty",
-		"value": "30",
-		"overridable": false,
-		"overrideOnly": false,
-		"guildOverrides": []
+		"value": "30"
 	},
 	{
 		"name": "maxYTAPICacheLifetime",
-		"label": "maksDługośćŻyciaCacheYTAPI",
-		"description": "Ilość czasu (w sekundach), po którym Muzyk2D automatycznie wyczyści cache metadanych z API YouTube'a",
-		"value": "7200",
-		"overridable": false,
-		"overrideOnly": false,
-		"guildOverrides": []
+		"value": "7200"
 	}
 ]

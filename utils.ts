@@ -5,7 +5,9 @@
 	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, 
 		M2D_IConfigFilesystemError, 
 		M2D_IConfigMissingKeyError, 
-		M2D_IConfigKeyNotOverridableError } from "./config";
+		M2D_IConfigMissingLabelError,
+		M2D_IConfigKeyNotOverridableError,
+		M2D_IConfigConfigSchemeMismatchError } from "./config";
 	import { M2D_ELogErrorSubtypes, M2D_LogUtils, 
 		M2D_ILogFilesystemError } from "./log";
 	import { M2D_EClientErrorSubtypes, 
@@ -52,7 +54,9 @@
 		M2D_IGeneralNoEnvVariableError |
 		M2D_IConfigFilesystemError |
 		M2D_IConfigMissingKeyError |
+		M2D_IConfigMissingLabelError |
 		M2D_IConfigKeyNotOverridableError |
+		M2D_IConfigConfigSchemeMismatchError |
 		M2D_IClientDiscordAPIError |
 		M2D_IClientMessageInvalidError |
 		M2D_ILogFilesystemError |

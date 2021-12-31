@@ -12,6 +12,8 @@
   - [x] Implement different styles for different types of logs
   - [x] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
 - [x] Implement separate bot configuration:
+  - [x] Add config scheme
+  - [x] Add schema validation
   - [x] Keep read-on-runtime-only values inside .env file
   - [x] Add global config - applies for every guild
   - [x] Add local configs for each guild

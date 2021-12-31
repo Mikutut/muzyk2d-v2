@@ -1,0 +1,37 @@
+[
+	{
+		"name": "prefix",
+		"label": "Prefiks",
+		"description": "Prefiks, stosowany do oznaczania komend",
+		"overridable": true,
+		"overrideOnly": false
+	},
+	{
+		"name": "minVCMembers",
+		"label": "minCzłonkówNaVC",
+		"description": "Minimalna ilość członków na kanale głosowym, przy której Muzyk2D nie opuszcza samodzielnie kanału",
+		"overridable": true,
+		"overrideOnly": false
+	},
+	{
+		"name": "timeout",
+		"label": "timeout",
+		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
+		"overridable": true,
+		"overrideOnly": false
+	},
+	{
+		"name": "maxPlaylistSize",
+		"label": "maksWielkośćPlaylisty",
+		"description": "Maksymalna wielkość playlisty",
+		"overridable": false,
+		"overrideOnly": false
+	},
+	{
+		"name": "maxYTAPICacheLifetime",
+		"label": "maksDługośćŻyciaCacheYTAPI",
+		"description": "Ilość czasu (w sekundach), po którym Muzyk2D automatycznie wyczyści cache metadanych z API YouTube'a",
+		"overridable": false,
+		"overrideOnly": false
+	}
+]
