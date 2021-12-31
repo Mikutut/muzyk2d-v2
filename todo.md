@@ -14,9 +14,9 @@
   - [x] Add global config - applies for every guild
   - [x] Add local configs for each guild
   - [x] Add global values' overrides for each guild
-- [ ] Implement commands interpreter:
+- [x] Implement commands interpreter:
   - [x] Define commands/prefix/alias schema
-  - [ ] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
+  - [x] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
   - [x] Implement aliases handling
   - [x] Implement missing command handling
   - [x] Implement insufficient parameters handling
