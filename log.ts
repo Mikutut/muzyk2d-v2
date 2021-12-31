@@ -21,7 +21,7 @@ import { readJsonConfigFile } from "typescript";
 //#endregionZapisywanie
 //#region Variables
 	let M2D_LogFileLocation = `m2d.log`;
-	const M2D_LogStartingMessage = `======\nMuzyk2D - v${M2D_GeneralUtils.getMuzyk2DVersion()}\nby Marcin "Mikut" Mikuła\nMikut 2020-2021\n======\n\n`;
+	const M2D_LogStartingMessage = `======\nMuzyk2D - v${M2D_GeneralUtils.getMuzyk2DVersion()}\nby Marcin "Mikut" Mikuła\nMikut 2020-2022\n======\n\n`;
 //#endregion
 
 const M2D_LogUtils = {

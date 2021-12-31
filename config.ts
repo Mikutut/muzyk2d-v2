@@ -1,6 +1,6 @@
 //#region Imports
 	import { M2D_LogUtils } from "./log";
-	import { M2D_GeneralUtils, M2D_IGeneralNoEnvVariableError, M2D_IError, M2D_EErrorTypes } from "./utils";
+	import { M2D_GeneralUtils, M2D_IGeneralNoEnvVariableError, M2D_IError, M2D_EErrorTypes, M2D_Error } from "./utils";
 	import * as fs from "fs/promises";
 //#endregion
 
@@ -76,6 +76,7 @@
 	let M2D_ConfigFileLocation = "m2d_config.json";
 	let M2D_CONFIG_SCHEME: M2D_IConfigSchemeEntry[] = [];
 	let M2D_CONFIG: M2D_IConfigEntry[] = [];
+	let M2D_DEFAULT_CONFIG: M2D_IConfigEntry[] = [];
 //#endregion
 
 const M2D_ConfigUtils = {
@@ -341,8 +342,29 @@ const M2D_ConfigUtils = {
 				})
 					.then((data: string) => M2D_LogUtils.logMessage("success", "Pomyślnie wczytano plik konfiguracyjny!")
 						.then(() => {
-							M2D_CONFIG = JSON.parse(data);
-							res();
+							const newConfig: M2D_IConfigEntry[] = JSON.parse(data);
+							M2D_ConfigUtils.validateConfig(newConfig)
+								.then(() => { 
+									M2D_CONFIG = newConfig;
+									res();
+								})
+								.catch((err: M2D_IConfigConfigSchemeMismatchError) => {
+									if(err.data.excessiveKeys.length === 0) {
+										if(err.data.missingKeys.length > 0) {
+											for(const cse of M2D_CONFIG_SCHEME) {
+												if(!(newConfig.find((v) => v.name === cse.name))) {
+													newConfig.push({
+														name: cse.name,
+														value: (M2D_DEFAULT_CONFIG.find((v) => v.name === cse.name) as M2D_IConfigEntry).value,
+														guildOverrides: []
+													});
+												}
+											}
+											M2D_CONFIG = newConfig;
+											res();
+										} else rej(err);
+									} else rej(err);
+								});	
 						}))
 					.catch(err => M2D_LogUtils.logMessage("error", `Nie udało się wczytać konfiguracji z pliku "${M2D_ConfigFileLocation}"`)
 						.then(() => rej({
@@ -362,8 +384,13 @@ const M2D_ConfigUtils = {
 				})
 					.then((data: string) => M2D_LogUtils.logMessage("success", "Pomyślnie wczytano domyślny plik konfiguracyjny!")
 						.then(() => {
-							M2D_CONFIG = JSON.parse(data);
-							res();
+							const newDefaultConfig = JSON.parse(data) as M2D_IConfigEntry[];
+							M2D_ConfigUtils.validateConfig(newDefaultConfig)
+								.then(() => {
+									M2D_DEFAULT_CONFIG = newDefaultConfig;
+									res();
+								})
+								.catch((err: M2D_IConfigConfigSchemeMismatchError) => rej(err));	
 						}))
 					.catch(err => M2D_LogUtils.logMessage("error", `Nie udało się wczytać konfiguracji z domyślnego pliku konfiguracyjnego!`)
 						.then(() => rej({
@@ -431,18 +458,20 @@ const M2D_ConfigUtils = {
 			})
 			.catch((err: M2D_IConfigConfigSchemeMismatchError) => rej(err));
 	}),
-	validateConfig: () => new Promise<void>((res, rej) => {
+	validateConfig: (config?: M2D_IConfigEntry[]) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Zainicjowano walidację konfiguracji...`)
 			.then(() => {	
 				const missingKeys: string[] = [];
 				const excessiveKeys: string[] = [];
+
+				const configToCheck: M2D_IConfigEntry[] = (config) ? config : M2D_CONFIG;
 				
 				for(const cse of M2D_CONFIG_SCHEME) {
-					if(!(M2D_CONFIG.find((v) => v.name === cse.name))) {
+					if(!(configToCheck.find((v) => v.name === cse.name))) {
 						missingKeys.push(cse.name);
 					}
 				}
-				for(const ce of M2D_CONFIG) {
+				for(const ce of configToCheck) {
 					if(!(M2D_CONFIG_SCHEME.find((v) => v.name === ce.name))) {
 						excessiveKeys.push(ce.name);
 					}
@@ -483,30 +512,40 @@ const M2D_ConfigUtils = {
 							.then(() => {
 								M2D_ConfigUtils.readDefaultConfigFile()
 									.then(() => {
+										M2D_CONFIG = M2D_DEFAULT_CONFIG;
 										M2D_LogUtils.logMessage(`success`, `Zainicjalizowano konfigurację!`)
 											.then(() => res());
 									})
-									.catch((err) => rej(err));
+									.catch((err: M2D_Error) => {
+										if(M2D_GeneralUtils.getErrorString(err) === "CONFIG_CONFIG_SCHEME_MISMATCH") {
+											err = err as M2D_IConfigConfigSchemeMismatchError;
+											M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Brakujące klucze: "${err.data.missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${err.data.excessiveKeys.join(", ")}"`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
+												.then(() => rej(err));
+										} else rej(err);
+									});
 							});
 					} else {
 						M2D_ConfigUtils.readConfigFile()
-							.then(() => {
-								M2D_LogUtils.logMessage(`info`, `Zainicjalizowano konfigurację. Przeprowadzanie walidacji...`)
-									.then(() => M2D_ConfigUtils.validateConfig())
+							.then(() => M2D_LogUtils.logMessage(`info`, `Zainicjalizowano konfigurację!`)
 									.then(() => res())
-									.catch((err: M2D_IConfigConfigSchemeMismatchError) => rej(err));
-							})
+							)
 							.catch(() => {
 								M2D_LogUtils.logMessage(`warn`, `Nie udało się wczytać konfiguracji z pliku "${M2D_ConfigFileLocation}". Wczytywanie domyślnej konfiguracji...`)
 									.then(() => {
 										M2D_ConfigUtils.readDefaultConfigFile()
-											.then(() => {
-												M2D_LogUtils.logMessage(`info`, `Zainicjalizowano konfigurację. Przeprowadzanie walidacji...`)
-													.then(() => M2D_ConfigUtils.validateConfig())
-													.then(() => res())
-													.catch((err: M2D_IConfigConfigSchemeMismatchError) => rej(err));
-											})
-											.catch((err) => rej(err));
+											.then(() => M2D_LogUtils.logMessage(`info`, `Zainicjalizowano konfigurację!`)
+												.then(() => { 
+													M2D_CONFIG = M2D_DEFAULT_CONFIG;
+													res();
+												})
+											)
+											.catch((err: M2D_Error) => {
+												if(M2D_GeneralUtils.getErrorString(err) === "CONFIG_CONFIG_SCHEME_MISMATCH") {
+													err = err as M2D_IConfigConfigSchemeMismatchError;
+													M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Brakujące klucze: "${err.data.missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${err.data.excessiveKeys.join(", ")}"`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
+														.then(() => rej(err));
+												} else rej(err);
+											});
 									});
 							});
 					}

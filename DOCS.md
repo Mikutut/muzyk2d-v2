@@ -29,4 +29,4 @@
 
 ---
 
-### [Mikut](https://mikut.dev) 2020-2021
+### [Mikut](https://mikut.dev) 2020-2022
