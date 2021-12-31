@@ -23,7 +23,8 @@
 		M2D_ICommandsCommandDeveloperOnlyError, 
 		M2D_ICommandsCommandNotInvokableInChatError,
 		M2D_ICommandsNoCommandsInCategoryError,
-		M2D_ICommandsCommandNotActiveError } from "./commands";
+		M2D_ICommandsCommandNotActiveError,
+		M2D_ICommandsDuplicateAliasesError } from "./commands";
 //#endregion
 
 //#region Types
@@ -69,7 +70,8 @@
 		M2D_ICommandsCommandDeveloperOnlyError |
 		M2D_ICommandsCommandNotInvokableInChatError |
 		M2D_ICommandsNoCommandsInCategoryError |
-		M2D_ICommandsCommandNotActiveError;
+		M2D_ICommandsCommandNotActiveError |
+		M2D_ICommandsDuplicateAliasesError;
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
@@ -148,12 +150,14 @@ const M2D_GeneralUtils = {
 		return embed;
 	},
 	exitHandler: (exitCode: number) => {
-		M2D_LogUtils.logMessage("info", "Rozpoczęto proces wyłączania...")
+		M2D_LogUtils.logMessage("info", "Trwa wyłączanie Muzyka2D...")
 			.then(() => M2D_LogUtils.logMessage("info", `Zapisywanie konfiguracji do pliku...`)
 				.then(() => M2D_ConfigUtils.saveConfigToFile())
 				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas zapisywania konfiguracji do pliku!`, `Typ błędu: "${err.type}"`, `Podtyp błędu: "${err.subtype}"`, `Dane o błędzie: "${JSON.stringify(err.data, null, 4)}"`))
 			)
-			.then(() => M2D_LogUtils.logMessage("success", "Zakończono proces wyłączania!"))
+			.then(() => M2D_LogUtils.leaveTrailingNewline()
+				.catch(() => {return;})
+			)
 			.then(() => process.exit(exitCode));
 	},
 	getErrorString: (error: M2D_Error): string => {

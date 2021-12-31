@@ -65,6 +65,7 @@ const M2D_ClientUtils = {
 			console.log(`Rozpoczęto wstępną inicjalizację...`);
 			M2D_LogUtils.initLogCapabilities()
 				.then(() => M2D_ConfigUtils.initConfigCapabilities())
+				.then(() => M2D_CommandUtils.initCommandCapabilities())
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
 				})
@@ -82,7 +83,7 @@ const M2D_ClientUtils = {
 
 					M2D_ConfigUtils.getConfigValue("prefix", guildId)
 						.then((prefix) => M2D_ClientUtils.parseMessage(message.content, prefix)
-								.then((parsedMessage) => M2D_LogUtils.logMessage(`success`, `Wykryto nowe żądanie wywołania komendy "${parsedMessage.fullCommand}" na serwerze "${guild.name}" (${guildId})`)
+								.then((parsedMessage) => M2D_LogUtils.logMessage(`info`, `Wykryto nowe żądanie wywołania komendy "${parsedMessage.fullCommand}" na serwerze "${guild.name}" (${guildId})`)
 									.then(() => {
 										const suppParameters: M2D_ICommandSuppParameters = {
 											message,

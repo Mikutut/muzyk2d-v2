@@ -2,10 +2,6 @@
 
 ---
 
-- [ ] Implement better error handling:
-  - [ ] Provide base interfaces as well as extensions for each type of error
-  - [ ] Attach error handler to each command that will be invoked on command failure
-  - [ ] Utilize try/catch blocks wherever possible
 - [x] Implement better logging:
   - [x] Implement saving logs to file
   - [x] Implement different types of logs (errors, successes, info etc.)
@@ -13,7 +9,7 @@
   - [x] Implement Promise-like style of invoking logs (for non-blocking IO and better error handling)
 - [x] Implement separate bot configuration:
   - [x] Add config scheme
-  - [x] Add schema validation
+  - [x] Add scheme validation
   - [x] Keep read-on-runtime-only values inside .env file
   - [x] Add global config - applies for every guild
   - [x] Add local configs for each guild

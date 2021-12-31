@@ -51,7 +51,8 @@
 			CommandNotActive = "COMMAND_NOT_ACTIVE",
 			CommandDeveloperOnly = "COMMAND_DEVELOPER_ONLY",
 			CommandNotInvokableInChat = "COMMAND_NOT_INVOKABLE_IN_CHAT",
-			NoCommandsInCategory = "NO_COMMANDS_IN_CATEGORY"
+			NoCommandsInCategory = "NO_COMMANDS_IN_CATEGORY",
+			DuplicateAliases = "DUPLICATE_ALIASES"
 		};
 		interface M2D_ICommandsMissingCommandError extends M2D_IError {
 			data: {
@@ -104,6 +105,12 @@
 		interface M2D_ICommandsCommandNotActiveError extends M2D_IError {
 			data: {
 				commandName: string;
+			}
+		};
+		interface M2D_ICommandsDuplicateAliasesError extends M2D_IError {
+			data: {
+				alias: string;
+				commandNames: string[];
 			}
 		};
 	//#endregion
@@ -187,6 +194,39 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 ];
 
 const M2D_CommandUtils = {
+	validateCommands: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Zainicjowano walidację komend...`)
+			.then(() => {
+				const checkVector: {aliases: string[]; commandName: string;}[] = [];
+				for(const cmd of M2D_COMMANDS) {
+					if(checkVector.length === 0) {
+						checkVector.push({aliases: cmd.aliases, commandName: cmd.name});
+					} else {
+						for(const al of cmd.aliases) {
+							if(checkVector.find((v) => v.aliases.find((vv) => vv === al))) {
+								const conflictingCommands = checkVector.map((v) => {
+									if(v.aliases.find((vv) => vv === al)) {
+										return v.commandName;
+									}
+								}) as string[];
+
+								M2D_LogUtils.logMultipleMessages(`error`, `Wykryto zduplikowane aliasy w liście komend!`, `Alias: "${al}"`, `Komendy zawierające taki alias: "${conflictingCommands.join(", ")}`)
+									.then(() => rej({
+										type: M2D_EErrorTypes.Commands,
+										subtype: M2D_ECommandsErrorSubtypes.DuplicateAliases,
+										data: {
+											alias: al,
+											commandNames: conflictingCommands
+										}
+									} as M2D_ICommandsDuplicateAliasesError));
+							}
+						}
+					}
+				}
+				M2D_LogUtils.logMessage(`success`, `Walidacja komend nie wykryła żadnych odchyleń!`)
+					.then(() => res());
+			});	
+	}),
 	getParameterValue: (parameters: M2D_ICommandParameter[], name: string) => new Promise<string>((res, rej) => {
 		if(parameters.find((v) => v.name === name)) {
 			return (parameters.find((v) => v.name === name) as M2D_ICommandParameter).value;
@@ -308,11 +348,12 @@ const M2D_CommandUtils = {
 	},
 	initCommandCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie komend...`)
+			.then(() => M2D_CommandUtils.validateCommands())
 			.then(() => {
-				// TODO: Check for duplicate aliases
 				M2D_LogUtils.logMessage(`success`, `Zainicjalizowano komendy!`)
 					.then(() => res());
-			});
+			})
+			.catch((err: M2D_Error) => rej(err));
 	})
 };
 
@@ -332,7 +373,8 @@ const M2D_CommandUtils = {
 		M2D_ICommandsCommandDeveloperOnlyError,
 		M2D_ICommandsCommandNotInvokableInChatError,
 		M2D_ICommandsNoCommandsInCategoryError,
-		M2D_ICommandsCommandNotActiveError
+		M2D_ICommandsCommandNotActiveError,
+		M2D_ICommandsDuplicateAliasesError
 	};
 	export {
 		M2D_ECommandsErrorSubtypes,

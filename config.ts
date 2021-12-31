@@ -173,7 +173,7 @@ const M2D_ConfigUtils = {
 				.then(() => {
 					const configEntry = M2D_CONFIG.find((v) => v.name === cKey) as M2D_IConfigEntry;
 
-					M2D_LogUtils.logMessage("info", `Znaleziono wartość konfiguracyjną o kluczu "${key}"!`)
+					M2D_LogUtils.logMessage("success", `Znaleziono wartość konfiguracyjną o kluczu "${key}"!`)
 						.then(() => {
 							M2D_ConfigUtils.getConfigSchemeEntry(cKey)
 								.then((schemeEntry: M2D_IConfigSchemeEntry) => {
@@ -379,13 +379,13 @@ const M2D_ConfigUtils = {
 	readConfigSchemeFile: () => new Promise<void>((res, rej) => {
 		let M2D_ConfigSchemeFileLocation = `m2d_configscheme.json`;
 
-		M2D_GeneralUtils.getEnvVar("CONFIG_SCHEMA_FILE")
-			.then((val) => M2D_LogUtils.logMessage(`info`, `Znaleziono zmienną środowiskową "M2D_CONFIG_SCHEMA_FILE" - stosowanie się do jej ustawień...`)
+		M2D_GeneralUtils.getEnvVar("CONFIG_SCHEME_FILE")
+			.then((val) => M2D_LogUtils.logMessage(`info`, `Znaleziono zmienną środowiskową "M2D_CONFIG_SCHEME_FILE" - stosowanie się do jej ustawień...`)
 				.then(() => { 
 					M2D_ConfigSchemeFileLocation = val;
 				})
 			)
-			.catch(() => M2D_LogUtils.logMessage(`warn`, `Nie znaleziono zmiennej środowiskowej "M2D_CONFIG_SCHEMA_FILE" - stosowanie domyślnego ustawienia...`))
+			.catch(() => M2D_LogUtils.logMessage(`warn`, `Nie znaleziono zmiennej środowiskowej "M2D_CONFIG_SCHEME_FILE" - stosowanie domyślnego ustawienia...`))
 			.then(() => {
 				fs.readFile(M2D_ConfigSchemeFileLocation, { encoding: "utf-8" })
 					.then((data) => M2D_LogUtils.logMessage(`success`, `Pomyślnie wczytano schemat konfiguracji z pliku "${M2D_ConfigSchemeFileLocation}"!`)
