@@ -7,7 +7,8 @@
 		M2D_IConfigMissingKeyError, 
 		M2D_IConfigMissingLabelError,
 		M2D_IConfigKeyNotOverridableError,
-		M2D_IConfigConfigSchemeMismatchError } from "./config";
+		M2D_IConfigConfigSchemeMismatchError,
+		M2D_IConfigNoDefaultConfigError } from "./config";
 	import { M2D_ELogErrorSubtypes, M2D_LogUtils, 
 		M2D_ILogFilesystemError } from "./log";
 	import { M2D_EClientErrorSubtypes, 
@@ -58,6 +59,7 @@
 		M2D_IConfigMissingLabelError |
 		M2D_IConfigKeyNotOverridableError |
 		M2D_IConfigConfigSchemeMismatchError |
+		M2D_IConfigNoDefaultConfigError |
 		M2D_IClientDiscordAPIError |
 		M2D_IClientMessageInvalidError |
 		M2D_ILogFilesystemError |
@@ -153,7 +155,7 @@ const M2D_GeneralUtils = {
 		M2D_LogUtils.logMessage("info", "Trwa wyłączanie Muzyka2D...")
 			.then(() => M2D_LogUtils.logMessage("info", `Zapisywanie konfiguracji do pliku...`)
 				.then(() => M2D_ConfigUtils.saveConfigToFile())
-				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas zapisywania konfiguracji do pliku!`, `Typ błędu: "${err.type}"`, `Podtyp błędu: "${err.subtype}"`, `Dane o błędzie: "${JSON.stringify(err.data, null, 4)}"`))
+				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas zapisywania konfiguracji do pliku!`, `Typ błędu: "${err.type}"`, `Podtyp błędu: "${err.subtype}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_LogUtils.leaveTrailingNewline()
 				.catch(() => {return;})

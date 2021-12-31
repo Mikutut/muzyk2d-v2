@@ -18,5 +18,13 @@
 	{
 		"name": "maxYTAPICacheLifetime",
 		"value": "7200"
+	},
+	{
+		"name": "sendMessageOnStartup",
+		"value": "false"
+	},
+	{
+		"name": "sendMessageOnStartupChannel",
+		"value": ""
 	}
 ]

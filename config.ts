@@ -29,7 +29,8 @@
 			KeyNotOverridable = "KEY_NOT_OVERRIDABLE",
 			KeyOverrideOnly = "KEY_OVERRIDE_ONLY",
 			OverrideNotPresent = "OVERRIDE_NOT_PRESENT",
-			ConfigSchemeMismatch = "CONFIG_SCHEME_MISMATCH"
+			ConfigSchemeMismatch = "CONFIG_SCHEME_MISMATCH",
+			NoDefaultConfig = "NO_DEFAULT_CONFIG"
 		};
 		interface M2D_IConfigFilesystemError extends M2D_IError {
 			data: {
@@ -57,17 +58,20 @@
 				key: string;
 				guildId: string;
 			}
-		}
+		};
 		interface M2D_IConfigKeyOverrideOnlyError extends M2D_IError {
 			data: {
 				key: string;
 			}
-		}
+		};
 		interface M2D_IConfigConfigSchemeMismatchError extends M2D_IError {
 			data: {
 				excessiveKeys: string[];
 				missingKeys: string[]
 			};
+		};
+		interface M2D_IConfigNoDefaultConfigError extends M2D_IError {
+			data: Record<string, never>;
 		}
 	//#endregion
 //#endregion
@@ -351,17 +355,26 @@ const M2D_ConfigUtils = {
 								.catch((err: M2D_IConfigConfigSchemeMismatchError) => {
 									if(err.data.excessiveKeys.length === 0) {
 										if(err.data.missingKeys.length > 0) {
-											for(const cse of M2D_CONFIG_SCHEME) {
-												if(!(newConfig.find((v) => v.name === cse.name))) {
-													newConfig.push({
-														name: cse.name,
-														value: (M2D_DEFAULT_CONFIG.find((v) => v.name === cse.name) as M2D_IConfigEntry).value,
-														guildOverrides: []
-													});
+											if(M2D_DEFAULT_CONFIG.length > 0) {
+												for(const cse of M2D_CONFIG_SCHEME) {
+													if(!(newConfig.find((v) => v.name === cse.name))) {
+														newConfig.push({
+															name: cse.name,
+															value: (M2D_DEFAULT_CONFIG.find((v) => v.name === cse.name) as M2D_IConfigEntry).value,
+															guildOverrides: []
+														});
+													}
 												}
+												M2D_CONFIG = newConfig;
+												res();
+											} else {
+												M2D_LogUtils.logMultipleMessages(`error`, `Wykryto brakujące klucze w konfiguracji, lecz nie można ich zastąpić wartościami domyślnymi. Domyślna konfiguracja nie została jeszcze wczytana!`)
+													.then(() => rej({
+														type: M2D_EErrorTypes.Config,
+														subtype: M2D_EConfigErrorSubtypes.NoDefaultConfig,
+														data: {}
+													} as M2D_IConfigNoDefaultConfigError))	
 											}
-											M2D_CONFIG = newConfig;
-											res();
 										} else rej(err);
 									} else rej(err);
 								});	
@@ -519,7 +532,7 @@ const M2D_ConfigUtils = {
 									.catch((err: M2D_Error) => {
 										if(M2D_GeneralUtils.getErrorString(err) === "CONFIG_CONFIG_SCHEME_MISMATCH") {
 											err = err as M2D_IConfigConfigSchemeMismatchError;
-											M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Brakujące klucze: "${err.data.missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${err.data.excessiveKeys.join(", ")}"`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
+											M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
 												.then(() => rej(err));
 										} else rej(err);
 									});
@@ -562,7 +575,8 @@ const M2D_ConfigUtils = {
 		M2D_IConfigMissingKeyError,
 		M2D_IConfigMissingLabelError,
 		M2D_IConfigKeyNotOverridableError,
-		M2D_IConfigConfigSchemeMismatchError
+		M2D_IConfigConfigSchemeMismatchError,
+		M2D_IConfigNoDefaultConfigError
 	}
 	export {
 		M2D_EConfigErrorSubtypes,
