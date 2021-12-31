@@ -194,11 +194,13 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 ];
 
 const M2D_CommandUtils = {
-	validateCommands: () => new Promise<void>((res, rej) => {
+	validateCommands: (commands?: M2D_ICommand[]) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Zainicjowano walidację komend...`)
 			.then(() => {
 				const checkVector: {aliases: string[]; commandName: string;}[] = [];
-				for(const cmd of M2D_COMMANDS) {
+				const commandsToCheck: M2D_ICommand[] = (commands) ? commands : M2D_COMMANDS;
+
+				for(const cmd of commandsToCheck) {
 					if(checkVector.length === 0) {
 						checkVector.push({aliases: cmd.aliases, commandName: cmd.name});
 					} else {
@@ -343,9 +345,16 @@ const M2D_CommandUtils = {
 					)
 			})	
 	}),
-	addCommands: (commands: M2D_ICommand[]) => {
-		M2D_COMMANDS.push(...commands);
-	},
+	addCommands: (commands: M2D_ICommand[]) => new Promise<void>((res, rej) => {
+		const cmds: M2D_ICommand[] = [...M2D_COMMANDS, ...commands];
+		
+		M2D_CommandUtils.validateCommands(cmds)
+			.then(() => {
+				M2D_COMMANDS.push(...commands);
+				res();
+			})
+			.catch((err) => rej(err));
+	}),
 	initCommandCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie komend...`)
 			.then(() => M2D_CommandUtils.validateCommands())

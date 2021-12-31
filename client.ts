@@ -64,8 +64,8 @@ const M2D_ClientUtils = {
 		M2D_Client.on("ready", () => {
 			console.log(`Rozpoczęto wstępną inicjalizację...`);
 			M2D_LogUtils.initLogCapabilities()
-				.then(() => M2D_ConfigUtils.initConfigCapabilities())
 				.then(() => M2D_CommandUtils.initCommandCapabilities())
+				.then(() => M2D_ConfigUtils.initConfigCapabilities())
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
 				})
