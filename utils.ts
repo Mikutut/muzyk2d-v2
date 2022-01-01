@@ -13,7 +13,10 @@
 		M2D_ILogFilesystemError } from "./log";
 	import { M2D_EClientErrorSubtypes, 
 		M2D_IClientDiscordAPIError,
-		M2D_IClientMessageInvalidError } from "./client";
+		M2D_IClientMessageInvalidError,
+		M2D_IClientMissingGuildError,
+		M2D_IClientMissingChannelError,
+		M2D_IClientMissingUserError } from "./client";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, 
 		M2D_ICommandsMissingCommandError, 
 		M2D_ICommandsInsufficientParametersError, 
@@ -62,6 +65,9 @@
 		M2D_IConfigNoDefaultConfigError |
 		M2D_IClientDiscordAPIError |
 		M2D_IClientMessageInvalidError |
+		M2D_IClientMissingGuildError |
+		M2D_IClientMissingChannelError |
+		M2D_IClientMissingUserError |
 		M2D_ILogFilesystemError |
 		M2D_ICommandsMissingCommandError |
 		M2D_ICommandsInsufficientParametersError |

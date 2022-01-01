@@ -4,7 +4,6 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EErrorTypes, M2D_Error, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
-import { parse } from "dotenv";
 //#endregion
 
 //#region Types
@@ -16,7 +15,10 @@ import { parse } from "dotenv";
 	//#region Error types
 		const enum M2D_EClientErrorSubtypes {
 			DiscordAPI = "DISCORD_API",
-			MessageInvalid = "MESSAGE_INVALID"
+			MessageInvalid = "MESSAGE_INVALID",
+			MissingGuild = "MISSING_GUILD",
+			MissingChannel = "MISSING_CHANNEL",
+			MissingUser = "MISSING_USER"
 		};
 		const enum M2D_EClientMessageInvalidErrorTypes {
 			NotStartingWithPrefix = "MESSAGE_NOT_STARTING_WITH_PREFIX",
@@ -32,7 +34,22 @@ import { parse } from "dotenv";
 				type: M2D_EClientMessageInvalidErrorTypes;
 				message: string;
 			}
-		}
+		};
+		interface M2D_IClientMissingGuildError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		};
+		interface M2D_IClientMissingChannelError extends M2D_IError {
+			data: {
+				channelId: string;
+			}
+		};
+		interface M2D_IClientMissingUserError extends M2D_IError {
+			data: {
+				userId: string;
+			}
+		};
 	//#endregion
 //#endregion
 
@@ -204,13 +221,19 @@ const M2D_ClientUtils = {
 					}
 				} as M2D_ICommandsMissingCommandError);
 			});
-	})
+	}),
+	doesGuildExist: (guildId: string) => M2D_Client.guilds.cache.get(guildId) !== undefined,
+	doesChannelExist: (channelId: string) => M2D_Client.channels.cache.get(channelId) !== undefined,
+	doesUserExist: (userId: string) => M2D_Client.users.cache.get(userId) !== undefined
 };
 
 //#region Exports
 	export type {
 		M2D_IClientDiscordAPIError,
-		M2D_IClientMessageInvalidError
+		M2D_IClientMessageInvalidError,
+		M2D_IClientMissingGuildError,
+		M2D_IClientMissingChannelError,
+		M2D_IClientMissingUserError
 	};
 	export {
 		M2D_EClientErrorSubtypes,
