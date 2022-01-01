@@ -8,7 +8,11 @@
 		"value": "1"
 	},
 	{
-		"name": "timeout",
+		"name": "noVCMembersTimeout",
+		"value": "60"
+	},
+	{
+		"name": "InactiveTimeout",
 		"value": "300"
 	},
 	{

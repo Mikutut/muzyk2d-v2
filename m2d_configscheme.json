@@ -14,8 +14,15 @@
 		"overrideOnly": false
 	},
 	{
-		"name": "timeout",
-		"label": "timeout",
+		"name": "noVCMembersTimeout",
+		"label": "brakCzłonkówNaVCTimeout",
+		"description": "Ilość czasu (w sekundach), po którym Muzyk2D opuści kanał głosowy, jeśli nie będzie na nim minimalnej ilości członków",
+		"overridable": false,
+		"overrideOnly": false
+	},
+	{
+		"name": "InactiveTimeout",
+		"label": "NieaktywnyTimeout",
 		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
 		"overridable": false,
 		"overrideOnly": false

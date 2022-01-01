@@ -12,6 +12,7 @@
 		guildId: string;
 		channelId: string;
 		voiceConnection: VoiceConnection;
+		noVCMembersElapsedTime: number;
 	};
 	//#region Error types
 		const enum M2D_EVoiceErrorSubtypes {
@@ -41,7 +42,38 @@
 	//#endregion
 //#endregion
 
+let noVCMembersTimeout = 60;
 const M2D_VOICE_CONNECTIONS: M2D_IVoiceConnection[] = [];
+
+const M2D_VoiceNoVCMembersTimer = setInterval(async () => {
+	for(const [i, v] of M2D_VOICE_CONNECTIONS.entries()) {
+		M2D_ClientUtils.getGuildFromId(v.guildId)
+			.then((guild) => M2D_ClientUtils.getGuildChannelFromId(v.guildId, v.channelId)
+				.then((channel: GuildBasedChannel) => {
+					if(channel.isVoice()) {
+						let minVCMembers: number;
+						
+						M2D_ConfigUtils.getConfigValue("minVCMembers")
+							.then((val) => minVCMembers = parseInt(val, 10))
+							.catch(() => minVCMembers = 1)
+							.then(() => {
+								if(((channel as VoiceChannel).members.size - 1) < minVCMembers) {
+									if(v.noVCMembersElapsedTime < noVCMembersTimeout) {
+										M2D_VOICE_CONNECTIONS[i].noVCMembersElapsedTime++;
+									} else {
+										M2D_LogUtils.logMessage(`info`, `Na kanale "${channel.name}" znajduje się mniej użytkowników, niż na to zezwala "minVCMembers" i dozwolony czas już upłynął. Rozłączanie z kanału...`)
+											.then(() => M2D_VoiceUtils.destroyVoiceConnection(v.guildId))
+											.catch(() => {return;});
+									}
+								} else {
+									if(v.noVCMembersElapsedTime > 0) M2D_VOICE_CONNECTIONS[i].noVCMembersElapsedTime = 0;
+								}
+							});
+					}
+				})
+			)
+	}
+}, 1000);
 
 const M2D_VoiceUtils = {
 	doesVoiceConnectionExistOnGuild: (guildId: string) => M2D_VOICE_CONNECTIONS.find((v) => v.guildId === guildId),
@@ -72,7 +104,8 @@ const M2D_VoiceUtils = {
 												M2D_VOICE_CONNECTIONS.push({
 													guildId: guild.id,
 													channelId: channel.id,
-													voiceConnection: vC
+													voiceConnection: vC,
+													noVCMembersElapsedTime: 0
 												});
 												M2D_LogUtils.logMessage(`success`, `Pomyślnie nawiązano połączenie z kanałem głosowym "${channel.name}" na serwerze "${guild.name}"!`)
 													.then(() => res());
