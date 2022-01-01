@@ -1,6 +1,6 @@
 //#region Imports
 	import { M2D_ConfigUtils } from "./config";
-	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel } from "discord.js";
+	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel, GuildBasedChannel, PermissionFlags } from "discord.js";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EErrorTypes, M2D_Error, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
@@ -18,7 +18,9 @@
 			MessageInvalid = "MESSAGE_INVALID",
 			MissingGuild = "MISSING_GUILD",
 			MissingChannel = "MISSING_CHANNEL",
-			MissingUser = "MISSING_USER"
+			MissingGuildChannel = "MISSING_GUILD_CHANNEL",
+			MissingUser = "MISSING_USER",
+			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS"
 		};
 		const enum M2D_EClientMessageInvalidErrorTypes {
 			NotStartingWithPrefix = "MESSAGE_NOT_STARTING_WITH_PREFIX",
@@ -45,11 +47,32 @@
 				channelId: string;
 			}
 		};
+		interface M2D_IClientMissingGuildChannelError extends M2D_IError {
+			data: {
+				guildId: string;
+				channelId: string;
+			}
+		};
 		interface M2D_IClientMissingUserError extends M2D_IError {
 			data: {
 				userId: string;
 			}
 		};
+		interface M2D_IClientInsufficientPermissionsError extends M2D_IError {
+			data: {
+				guild: Guild;
+				channel?: GuildBasedChannel;
+				permissions: string[];
+			}
+		};
+
+		type M2D_ClientError = M2D_IClientDiscordAPIError |
+			M2D_IClientMessageInvalidError |
+			M2D_IClientMissingGuildError |
+			M2D_IClientMissingChannelError |
+			M2D_IClientMissingGuildChannelError |
+			M2D_IClientMissingUserError |
+			M2D_IClientInsufficientPermissionsError;
 	//#endregion
 //#endregion
 
@@ -224,7 +247,41 @@ const M2D_ClientUtils = {
 	}),
 	doesGuildExist: (guildId: string) => M2D_Client.guilds.cache.get(guildId) !== undefined,
 	doesChannelExist: (channelId: string) => M2D_Client.channels.cache.get(channelId) !== undefined,
-	doesUserExist: (userId: string) => M2D_Client.users.cache.get(userId) !== undefined
+	doesChannelOnGuildExist: (guildId: string, channelId: string) => {
+		if(M2D_ClientUtils.doesGuildExist(guildId)) {
+			const guild = M2D_Client.guilds.cache.get(guildId) as Guild;
+
+			if(guild.channels.cache.get(channelId)) return true;
+			else return false;
+		} else return false;
+	},
+	doesUserExist: (userId: string) => M2D_Client.users.cache.get(userId) !== undefined,
+	getGuildFromId: (guildId: string) => new Promise<Guild>((res, rej) => {
+		if(M2D_ClientUtils.doesGuildExist(guildId)) {
+			res(M2D_Client.guilds.cache.get(guildId) as Guild);
+		} else rej({
+			type: M2D_EErrorTypes.Client,
+			subtype: M2D_EClientErrorSubtypes.MissingGuild,
+			data: {
+				guildId
+			}
+		} as M2D_IClientMissingGuildError);
+	}),
+	getGuildChannelFromId: (guildId: string, channelId: string) => new Promise<GuildBasedChannel>((res, rej) => {
+		if(M2D_ClientUtils.doesChannelOnGuildExist(guildId, channelId)) {
+			M2D_ClientUtils.getGuildFromId(guildId)
+				.then((guild) => {
+					res(guild.channels.cache.get(channelId) as GuildBasedChannel);
+				});	
+		} else rej({
+			type: M2D_EErrorTypes.Client,
+			subtype: M2D_EClientErrorSubtypes.MissingGuildChannel,
+			data: {
+				guildId,
+				channelId
+			}
+		} as M2D_IClientMissingGuildChannelError);
+	})
 };
 
 //#region Exports
@@ -233,7 +290,10 @@ const M2D_ClientUtils = {
 		M2D_IClientMessageInvalidError,
 		M2D_IClientMissingGuildError,
 		M2D_IClientMissingChannelError,
-		M2D_IClientMissingUserError
+		M2D_IClientMissingGuildChannelError,
+		M2D_IClientMissingUserError,
+		M2D_IClientInsufficientPermissionsError,
+		M2D_ClientError
 	};
 	export {
 		M2D_EClientErrorSubtypes,

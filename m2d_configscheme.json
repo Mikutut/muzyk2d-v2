@@ -10,14 +10,14 @@
 		"name": "minVCMembers",
 		"label": "minCzłonkówNaVC",
 		"description": "Minimalna ilość członków na kanale głosowym, przy której Muzyk2D nie opuszcza samodzielnie kanału",
-		"overridable": true,
+		"overridable": false,
 		"overrideOnly": false
 	},
 	{
 		"name": "timeout",
 		"label": "timeout",
 		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
-		"overridable": true,
+		"overridable": false,
 		"overrideOnly": false
 	},
 	{

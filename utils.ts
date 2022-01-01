@@ -11,12 +11,7 @@
 		M2D_IConfigNoDefaultConfigError } from "./config";
 	import { M2D_ELogErrorSubtypes, M2D_LogUtils, 
 		M2D_ILogFilesystemError } from "./log";
-	import { M2D_EClientErrorSubtypes, 
-		M2D_IClientDiscordAPIError,
-		M2D_IClientMessageInvalidError,
-		M2D_IClientMissingGuildError,
-		M2D_IClientMissingChannelError,
-		M2D_IClientMissingUserError } from "./client";
+	import { M2D_EClientErrorSubtypes, M2D_ClientError} from "./client";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, 
 		M2D_ICommandsMissingCommandError, 
 		M2D_ICommandsInsufficientParametersError, 
@@ -29,6 +24,7 @@
 		M2D_ICommandsNoCommandsInCategoryError,
 		M2D_ICommandsCommandNotActiveError,
 		M2D_ICommandsDuplicateAliasesError } from "./commands";
+	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError } from "voice";
 //#endregion
 
 //#region Types
@@ -49,7 +45,8 @@
 		M2D_EConfigErrorSubtypes |
 		M2D_ELogErrorSubtypes |
 		M2D_EClientErrorSubtypes |
-		M2D_ECommandsErrorSubtypes;
+		M2D_ECommandsErrorSubtypes |
+		M2D_EVoiceErrorSubtypes;
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
@@ -63,11 +60,7 @@
 		M2D_IConfigKeyNotOverridableError |
 		M2D_IConfigConfigSchemeMismatchError |
 		M2D_IConfigNoDefaultConfigError |
-		M2D_IClientDiscordAPIError |
-		M2D_IClientMessageInvalidError |
-		M2D_IClientMissingGuildError |
-		M2D_IClientMissingChannelError |
-		M2D_IClientMissingUserError |
+		M2D_ClientError |
 		M2D_ILogFilesystemError |
 		M2D_ICommandsMissingCommandError |
 		M2D_ICommandsInsufficientParametersError |
@@ -79,7 +72,8 @@
 		M2D_ICommandsCommandNotInvokableInChatError |
 		M2D_ICommandsNoCommandsInCategoryError |
 		M2D_ICommandsCommandNotActiveError |
-		M2D_ICommandsDuplicateAliasesError;
+		M2D_ICommandsDuplicateAliasesError |
+		M2D_VoiceError;
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
