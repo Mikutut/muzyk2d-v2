@@ -2,7 +2,6 @@
 	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError, M2D_IGeneralNoEnvVariableError } from "./utils";
 	import * as fs from "fs/promises";
 	import * as path from "path";
-import { readJsonConfigFile } from "typescript";
 //#endregion
 
 //#region Types
@@ -17,6 +16,8 @@ import { readJsonConfigFile } from "typescript";
 				path: string;
 			};
 		};
+
+		type M2D_LogError = M2D_ILogFilesystemError;
 	//#endregion
 //#endregionZapisywanie
 //#region Variables
@@ -117,7 +118,8 @@ const M2D_LogUtils = {
 //#region Exports
 	export type {
 		M2D_LogMessageType,
-		M2D_ILogFilesystemError
+		M2D_ILogFilesystemError,
+		M2D_LogError
 	};
 	export {
 		M2D_LogUtils,

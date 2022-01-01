@@ -73,6 +73,13 @@
 		interface M2D_IConfigNoDefaultConfigError extends M2D_IError {
 			data: Record<string, never>;
 		}
+
+		type M2D_ConfigError = M2D_IConfigFilesystemError |
+			M2D_IConfigMissingKeyError |
+			M2D_IConfigMissingLabelError |
+			M2D_IConfigKeyNotOverridableError |
+			M2D_IConfigConfigSchemeMismatchError |
+			M2D_IConfigNoDefaultConfigError;
 	//#endregion
 //#endregion
 
@@ -576,7 +583,8 @@ const M2D_ConfigUtils = {
 		M2D_IConfigMissingLabelError,
 		M2D_IConfigKeyNotOverridableError,
 		M2D_IConfigConfigSchemeMismatchError,
-		M2D_IConfigNoDefaultConfigError
+		M2D_IConfigNoDefaultConfigError,
+		M2D_ConfigError
 	}
 	export {
 		M2D_EConfigErrorSubtypes,

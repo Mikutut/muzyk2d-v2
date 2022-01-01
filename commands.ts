@@ -113,6 +113,18 @@
 				commandNames: string[];
 			}
 		};
+
+		type M2D_CommandsError = M2D_ICommandsMissingCommandError |
+			M2D_ICommandsInsufficientParametersError |
+			M2D_ICommandsMissingSuppParametersError |
+			M2D_ICommandsMissingAliasError |
+			M2D_ICommandsMissingCategoryError |
+			M2D_ICommandsMissingParameterError | 
+			M2D_ICommandsCommandDeveloperOnlyError |
+			M2D_ICommandsCommandNotInvokableInChatError |
+			M2D_ICommandsNoCommandsInCategoryError |
+			M2D_ICommandsCommandNotActiveError |
+			M2D_ICommandsDuplicateAliasesError;
 	//#endregion
 //#endregion
 
@@ -383,7 +395,8 @@ const M2D_CommandUtils = {
 		M2D_ICommandsCommandNotInvokableInChatError,
 		M2D_ICommandsNoCommandsInCategoryError,
 		M2D_ICommandsCommandNotActiveError,
-		M2D_ICommandsDuplicateAliasesError
+		M2D_ICommandsDuplicateAliasesError,
+		M2D_CommandsError
 	};
 	export {
 		M2D_ECommandsErrorSubtypes,

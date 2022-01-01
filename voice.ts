@@ -76,7 +76,7 @@ const M2D_VoiceNoVCMembersTimer = setInterval(async () => {
 }, 1000);
 
 const M2D_VoiceUtils = {
-	doesVoiceConnectionExistOnGuild: (guildId: string) => M2D_VOICE_CONNECTIONS.find((v) => v.guildId === guildId),
+	doesVoiceConnectionExistOnGuild: (guildId: string) => M2D_VOICE_CONNECTIONS.find((v) => v.guildId === guildId) !== undefined,
 	createVoiceConnection: (guildId: string, channelId: string) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Nawiązywanie połączenia z kanałem głosowym o ID "${channelId}" na serwerze o ID "${guildId}"...`)
 			.then(() => { 

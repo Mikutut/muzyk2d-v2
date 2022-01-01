@@ -2,29 +2,13 @@
 	import { version as M2DVersion } from "./package.json";
 	import { config as dotenvConfig } from "dotenv";
 	import { EmbedField, MessageEmbed } from "discord.js";
-	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, 
-		M2D_IConfigFilesystemError, 
-		M2D_IConfigMissingKeyError, 
-		M2D_IConfigMissingLabelError,
-		M2D_IConfigKeyNotOverridableError,
-		M2D_IConfigConfigSchemeMismatchError,
-		M2D_IConfigNoDefaultConfigError } from "./config";
-	import { M2D_ELogErrorSubtypes, M2D_LogUtils, 
-		M2D_ILogFilesystemError } from "./log";
-	import { M2D_EClientErrorSubtypes, M2D_ClientError} from "./client";
-	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, 
-		M2D_ICommandsMissingCommandError, 
-		M2D_ICommandsInsufficientParametersError, 
-		M2D_ICommandsMissingSuppParametersError, 
-		M2D_ICommandsMissingAliasError, 
-		M2D_ICommandsMissingCategoryError, 
-		M2D_ICommandsMissingParameterError,
-		M2D_ICommandsCommandDeveloperOnlyError, 
-		M2D_ICommandsCommandNotInvokableInChatError,
-		M2D_ICommandsNoCommandsInCategoryError,
-		M2D_ICommandsCommandNotActiveError,
-		M2D_ICommandsDuplicateAliasesError } from "./commands";
+	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, M2D_ConfigError } from "./config";
+	import { M2D_LogUtils, M2D_ELogErrorSubtypes, M2D_LogError } from "./log";
+	import { M2D_EClientErrorSubtypes, M2D_ClientError } from "./client";
+	import { M2D_ECommandsErrorSubtypes, M2D_CommandsError } from "./commands";
 	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError } from "voice";
+	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError } from "playlist";
+	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "playback";
 //#endregion
 
 //#region Types
@@ -46,34 +30,23 @@
 		M2D_ELogErrorSubtypes |
 		M2D_EClientErrorSubtypes |
 		M2D_ECommandsErrorSubtypes |
-		M2D_EVoiceErrorSubtypes;
+		M2D_EVoiceErrorSubtypes |
+		M2D_EPlaylistErrorSubtypes |
+		M2D_EPlaybackErrorSubtypes;
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
 		data: Record<string, any>;
 	};
 	type M2D_Error = M2D_IUnknownError |
-		M2D_IGeneralNoEnvVariableError |
-		M2D_IConfigFilesystemError |
-		M2D_IConfigMissingKeyError |
-		M2D_IConfigMissingLabelError |
-		M2D_IConfigKeyNotOverridableError |
-		M2D_IConfigConfigSchemeMismatchError |
-		M2D_IConfigNoDefaultConfigError |
+		M2D_GeneralError |
+		M2D_ConfigError |
 		M2D_ClientError |
-		M2D_ILogFilesystemError |
-		M2D_ICommandsMissingCommandError |
-		M2D_ICommandsInsufficientParametersError |
-		M2D_ICommandsMissingSuppParametersError |
-		M2D_ICommandsMissingAliasError |
-		M2D_ICommandsMissingCategoryError |
-		M2D_ICommandsMissingParameterError | 
-		M2D_ICommandsCommandDeveloperOnlyError |
-		M2D_ICommandsCommandNotInvokableInChatError |
-		M2D_ICommandsNoCommandsInCategoryError |
-		M2D_ICommandsCommandNotActiveError |
-		M2D_ICommandsDuplicateAliasesError |
-		M2D_VoiceError;
+		M2D_LogError |
+		M2D_CommandsError |
+		M2D_VoiceError |
+		M2D_PlaylistError |
+		M2D_PlaybackError;
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
@@ -89,6 +62,8 @@
 				envVariable: string;
 			};
 		};
+
+		type M2D_GeneralError = M2D_IGeneralNoEnvVariableError;
 	//#endregion
 
 	type M2D_EmbedType = "info" | "success" | "error";
