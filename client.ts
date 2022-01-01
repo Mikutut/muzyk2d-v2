@@ -4,6 +4,7 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EErrorTypes, M2D_Error, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
+	import { M2D_VoiceUtils } from "./voice";
 //#endregion
 
 //#region Types
@@ -106,6 +107,7 @@ const M2D_ClientUtils = {
 			M2D_LogUtils.initLogCapabilities()
 				.then(() => M2D_CommandUtils.initCommandCapabilities())
 				.then(() => M2D_ConfigUtils.initConfigCapabilities())
+				.then(() => M2D_VoiceUtils.initVoiceCapabilities())
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
 				})

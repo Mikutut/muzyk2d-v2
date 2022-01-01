@@ -1,9 +1,9 @@
 //#region Imports
 	import { AudioPlayer, createAudioPlayer } from "@discordjs/voice";
 	import { M2D_LogUtils } from "log";
-	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistUtils } from "playlist";
-	import { M2D_GeneralUtils, M2D_Error, M2D_IError, M2D_EErrorTypes } from "utils";
-	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceAlreadyDisconnectedError, M2D_VoiceUtils } from "voice";
+	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistUtils } from "./playlist";
+	import { M2D_GeneralUtils, M2D_Error, M2D_IError, M2D_EErrorTypes } from "./utils";
+	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceAlreadyDisconnectedError, M2D_VoiceUtils } from "./voice";
 //#endregion
 
 //#region Types

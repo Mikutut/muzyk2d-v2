@@ -1,6 +1,6 @@
 //#region Imports
 	import { nanoid } from "nanoid";
-	import { M2D_EErrorTypes, M2D_IError } from "utils";
+	import { M2D_EErrorTypes, M2D_IError } from "./utils";
 //#endregion
 
 //#region Types

@@ -1,10 +1,10 @@
 //#region Imports
-	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError } from "utils";
+	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { VoiceConnection, AudioPlayer, AudioResource, joinVoiceChannel, DiscordGatewayAdapterCreator, VoiceConnectionState, VoiceConnectionStatus } from "@discordjs/voice";
 	import { Guild, GuildBasedChannel, GuildMember, VoiceChannel } from "discord.js";
-	import { M2D_IClientMissingGuildError, M2D_IClientMissingChannelError, M2D_EClientErrorSubtypes, M2D_ClientUtils, M2D_IClientMissingGuildChannelError, M2D_IClientInsufficientPermissionsError } from "client";
-	import { M2D_ConfigUtils } from "config";
-	import { M2D_LogUtils } from "log";
+	import { M2D_IClientMissingGuildError, M2D_IClientMissingChannelError, M2D_EClientErrorSubtypes, M2D_ClientUtils, M2D_IClientMissingGuildChannelError, M2D_IClientInsufficientPermissionsError } from "./client";
+	import { M2D_ConfigUtils } from "./config";
+	import { M2D_LogUtils } from "./log";
 //#endregion
 
 //#region Types
@@ -174,7 +174,18 @@ const M2D_VoiceUtils = {
 			});
 	}),
 	initVoiceCapabilities: () => new Promise<void>((res, rej) => {
-
+		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie możliwości głosowych...`)
+			.then(() => M2D_ConfigUtils.getConfigValue("noVCMembersTimeout")
+				.then((val) => {
+					noVCMembersTimeout = parseInt(val, 10);
+				})
+				.catch(() => {return;})
+			)
+			.then(() => {
+				M2D_VoiceNoVCMembersTimer.refresh();
+				M2D_LogUtils.logMessage(`success`, `Zainicjalizowano możliwości głosowe!`)
+					.then(() => res());
+			});
 	})
 };
 

@@ -6,9 +6,9 @@
 	import { M2D_LogUtils, M2D_ELogErrorSubtypes, M2D_LogError } from "./log";
 	import { M2D_EClientErrorSubtypes, M2D_ClientError } from "./client";
 	import { M2D_ECommandsErrorSubtypes, M2D_CommandsError } from "./commands";
-	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError } from "voice";
-	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError } from "playlist";
-	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "playback";
+	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError } from "./voice";
+	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError } from "./playlist";
+	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "./playback";
 //#endregion
 
 //#region Types
