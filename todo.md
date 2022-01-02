@@ -44,17 +44,17 @@
 - [ ] Implement "help" command
 - [ ] Implement Rich Presence
 - [ ] Implement status change
+- [x] Add standard exit handler:
+  - [x] Close all existing audio streams (playbacks)
+  - [x] Disconnect Muzyk2D from voice channel before leaving
+  - [x] Save current configuration to file
+- [x] Add "SIGINT" and "SIGTERM" handlers
 - [ ] Design Muzyk2D documentation:
   - [ ] Used libraries
   - [ ] Muzyk2D installation and usage instructions
   - [ ] Utilities
   - [ ] Environmental variables
   - [ ] Commands
-- [x] Add standard exit handler:
-  - [x] Close all existing audio streams (playbacks)
-  - [x] Disconnect Muzyk2D from voice channel before leaving
-  - [x] Save current configuration to file
-- [x] Add "SIGINT" and "SIGTERM" handlers
 
 ---
 
