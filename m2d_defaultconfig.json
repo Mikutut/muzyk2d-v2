@@ -34,5 +34,13 @@
 	{
 		"name": "voiceConnectionDisconnectedTimeout",
 		"value": "60"
+	},
+	{
+		"name": "autoDeleteMessageReplies",
+		"value": "false"
+	},
+	{
+		"name": "autoDeleteMessageRepliesTime",
+		"value": "10"
 	}
 ]

@@ -23,10 +23,10 @@
   - [x] Make global commands list
   - [x] Implement dev-only/not invokable by chat commands
 - [ ] Implement voice features:
-  - [ ] Implement joining/leaving voice channels
+  - [x] Implement joining/leaving voice channels
   - [ ] Implement proper voice connection handling:
-    - [ ] Handle unexpected connection loses
-    - [ ] Prevent Discord API library from crashing (that might be hard since I don't know what was crashing it last time ¯\_(ツ)_/¯)
+    - [x] Handle unexpected connection loses
+    - [x] Prevent Discord API library from crashing (that might be hard since I don't know what was crashing it last time ¯\_(ツ)_/¯)
   - [ ] Implement no users in channel/long client inactivity detection
 - [ ] Implement data collection through YouTube API:
   - [ ] Get YouTube Data API access tokens
@@ -52,7 +52,7 @@
   - [ ] Commands
 - [ ] Add standard exit handler:
   - [ ] Close all existing audio streams (playbacks)
-  - [ ] Disconnect Muzyk2D from voice channel before leaving
+  - [x] Disconnect Muzyk2D from voice channel before leaving
   - [x] Save current configuration to file
 - [x] Add "SIGINT" and "SIGTERM" handlers
 

@@ -61,5 +61,19 @@
 		"description": "Ilość czasu (w sekundach), po którym połączenie głosowe automatycznie przejdzie ze stanu \"DISCONNECTED\" do stanu \"DESTROYED\"",
 		"overridable": false,
 		"overrideOnly": false
+	},
+	{
+		"name": "autoDeleteMessageReplies",
+		"label": "autoUsuńOdpowiedzi",
+		"description": "Czy Muzyk2D ma automatycznie usuwać swoje odpowiedzi?",
+		"overridable": true,
+		"overrideOnly": false
+	},
+	{
+		"name": "autoDeleteMessageRepliesTime",
+		"label": "autoUsuńOdpowiedziCzas",
+		"description": "Po jakim czasie (w sekundach) Muzyk2D ma usuwać swoją odpowiedź",
+		"overridable": true,
+		"overrideOnly": false
 	}
 ]

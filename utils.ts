@@ -143,7 +143,8 @@ const M2D_GeneralUtils = {
 		if(error.type !== M2D_EErrorTypes.Unknown) {
 			return `${error.type}_${error.subtype}`;
 		} else return `UNKNOWN`;
-	}
+	},
+	delay: (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms))
 };
 
 

@@ -1,6 +1,6 @@
 //#region Imports
 	import { M2D_ConfigUtils } from "./config";
-	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel, GuildBasedChannel, PermissionFlags } from "discord.js";
+	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel, GuildBasedChannel, PermissionFlags, MessageOptions } from "discord.js";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EErrorTypes, M2D_Error, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
@@ -22,7 +22,8 @@
 			MissingGuildChannel = "MISSING_GUILD_CHANNEL",
 			MissingUser = "MISSING_USER",
 			MissingGuildMember = "MISSING_GUILD_MEMBER",
-			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS"
+			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS",
+			WrongChannelType = "WRONG_CHANNEL_TYPE"
 		};
 		const enum M2D_EClientMessageInvalidErrorTypes {
 			NotStartingWithPrefix = "MESSAGE_NOT_STARTING_WITH_PREFIX",
@@ -71,6 +72,14 @@
 				guild: Guild;
 				channel?: GuildBasedChannel;
 				permissions: string[];
+			}
+		};
+		interface M2D_IClientWrongChannelTypeError extends M2D_IError {
+			data: {
+				guildId: string;
+				channelId: string;
+				expectedTypes: string[];
+				receivedType: string;
 			}
 		};
 
@@ -325,6 +334,136 @@ const M2D_ClientUtils = {
 				} as M2D_IClientMissingGuildMemberError);
 			})
 			.catch((err) => rej(err));	
+	}),
+	sendMessageInGuild: (guildId: string, channelId: string, message: MessageOptions) => new Promise<void>((res, rej) => {
+		M2D_ConfigUtils.getConfigValue("autoDeleteMessageReplies", guildId)
+			.then((val) => {
+				const autoDeleteMessageReplies = (val === "true") ? true : false;
+
+				M2D_ConfigUtils.getConfigValue("autoDeleteMessageRepliesTime", guildId)
+					.then((val2) => {
+						const autoDeleteMessageRepliesTime = parseInt(val2, 10);
+
+						M2D_ClientUtils.getGuildChannelFromId(guildId, channelId)
+							.then((channel: GuildBasedChannel) => {
+								if(channel.type === "GUILD_TEXT" || channel.type === "GUILD_PUBLIC_THREAD") {
+									if(channel.permissionsFor(channel.guild.me as GuildMember).has([
+										"SEND_MESSAGES",
+										"SEND_MESSAGES_IN_THREADS",
+									])) {
+										channel.sendTyping()
+											.then(() => channel.send(message)
+												.then((msg: Message<boolean>) => {
+													if(autoDeleteMessageReplies) {
+														M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+															.then(() => msg.delete())
+															.then(() => res())
+															.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
+																.then(() => res())
+															);
+													}
+												})
+											)
+											.catch((err: Error) => rej({
+												type: M2D_EErrorTypes.Client,
+												subtype: M2D_EClientErrorSubtypes.DiscordAPI,
+												data: {
+													errorMessage: err.message
+												}
+											} as M2D_IClientDiscordAPIError));
+									} else rej({
+										type: M2D_EErrorTypes.Client,
+										subtype: M2D_EClientErrorSubtypes.InsufficientPermissions,
+										data: {
+											guild: channel.guild,
+											channel,
+											permissions: [ "SEND_MESSAGES", "SEND_MESSAGES_IN_THREADS" ]
+										}
+									} as M2D_IClientInsufficientPermissionsError);
+								} else rej({
+									type: M2D_EErrorTypes.Client,
+									subtype: M2D_EClientErrorSubtypes.WrongChannelType,
+									data: {
+										guildId,
+										channelId,
+										expectedTypes: ["GUILD_TEXT", "GUILD_PUBLIC_THREAD"],
+										receivedType: channel.type
+									}
+								} as M2D_IClientWrongChannelTypeError); 
+							})
+							.catch((err) => rej(err));	
+					})
+					.catch((err) => rej(err));
+			})
+			.catch((err) => rej(err));	
+	}),
+	sendMessageReplyInGuild: (orgMessage: Message<boolean>, message: MessageOptions) => new Promise<void>((res, rej) => {
+		const channel = orgMessage.channel;
+		const guild = orgMessage.guild as Guild;
+
+		M2D_ConfigUtils.getConfigValue("autoDeleteMessageReplies", guild.id)
+			.then((val) => {
+				const autoDeleteMessageReplies = (val === "true") ? true : false;
+
+				M2D_ConfigUtils.getConfigValue("autoDeleteMessageRepliesTime", guild.id)
+					.then((val2) => {
+						const autoDeleteMessageRepliesTime = parseInt(val2, 10);
+						
+						if(channel.type === "GUILD_TEXT" || channel.type === "GUILD_PUBLIC_THREAD") {
+							if(channel.permissionsFor(guild.me as GuildMember).has([
+								"SEND_MESSAGES",
+								"SEND_MESSAGES_IN_THREADS",
+								"USE_PUBLIC_THREADS",
+							])) {
+								channel.sendTyping()
+									.then(() => orgMessage.reply(message)
+										.then((msg: Message<boolean>) => {
+											if(autoDeleteMessageReplies) {
+												M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+													.then(() => msg.delete())
+													.then(() => res())
+													.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
+														.then(() => res())
+													);
+											}
+										})
+									)
+									.catch((err: Error) => rej({
+										type: M2D_EErrorTypes.Client,
+										subtype: M2D_EClientErrorSubtypes.DiscordAPI,
+										data: {
+											errorMessage: err.message
+										}
+									} as M2D_IClientDiscordAPIError));
+							} else rej({
+								type: M2D_EErrorTypes.Client,
+								subtype: M2D_EClientErrorSubtypes.InsufficientPermissions,
+								data: {
+									guild,
+									channel,
+									permissions: [ "SEND_MESSAGES", "SEND_MESSAGES_IN_THREADS", "USE_PUBLIC_THREADS" ]
+								}
+							} as M2D_IClientInsufficientPermissionsError);
+						} else rej({
+							type: M2D_EErrorTypes.Client,
+							subtype: M2D_EClientErrorSubtypes.WrongChannelType,
+							data: {
+								guildId: guild.id,
+								channelId: channel.id,
+								expectedTypes: ["GUILD_TEXT", "GUILD_PUBLIC_THREAD"],
+								receivedType: channel.type
+							}
+						} as M2D_IClientWrongChannelTypeError); 
+					})	
+					.catch((err) => rej(err));
+			})
+			.catch((err) => rej(err));
+	}),
+	initClientCapabilities: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie możliwości klienta...`)
+			.then(() => M2D_LogUtils.logMessage(`success`, `Zainicjalizowano możliwości klienta!`)
+				.then(() => res())
+			);	
 	})
 };
 
