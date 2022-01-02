@@ -8,6 +8,7 @@
         "build": "tsc",
         "rm-js": "rm -rf ./*.js",
         "start-dev": "tsc && node .",
+				"start-dev-paths": "tsc && node -r tsconfig-paths/register .",
         "start": "node .",
         "lint": "eslint . --ext .ts"
     },
@@ -43,6 +44,7 @@
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.8.0",
         "@typescript-eslint/parser": "^5.8.0",
-        "eslint": "^8.5.0"
+        "eslint": "^8.5.0",
+        "tsconfig-paths": "^3.12.0"
     }
 }

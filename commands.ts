@@ -140,6 +140,10 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	voice: {
 		name: "voice",
 		label: "głosowe"
+	},
+	playlist: {
+		name: "playlist",
+		label: "playlista"
 	}
 };
 
@@ -247,7 +251,7 @@ const M2D_CommandUtils = {
 	}),
 	getParameterValue: (parameters: M2D_ICommandParameter[], name: string) => new Promise<string>((res, rej) => {
 		if(parameters.find((v) => v.name === name)) {
-			return (parameters.find((v) => v.name === name) as M2D_ICommandParameter).value;
+			res((parameters.find((v) => v.name === name) as M2D_ICommandParameter).value);
 		} else rej({
 			type: M2D_EErrorTypes.Commands,
 			subtype: M2D_ECommandsErrorSubtypes.MissingParameter,

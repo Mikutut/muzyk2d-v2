@@ -48,7 +48,7 @@
 let M2D_YT_API_KEY = "";
 let M2D_CURRENT_QUOTA = 0;
 const M2D_CACHED_METADATA: M2D_IYTAPIVideoMetadata[] = [];
-const YT_URL_REGEX = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+const YT_URL_REGEX = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/)|(?:(?:watch)?\?v(?:i)?=|&v(?:i)?=))([^#&?]*).*/;
 
 const M2D_YTAPIUtils = {
 	getVideoMetadata: (videoId: string) => new Promise<M2D_IYTAPIVideoMetadata>((res, rej) => {
@@ -104,7 +104,7 @@ const M2D_YTAPIUtils = {
 									videoId,
 									title: resp.data.items[0].snippet.title,
 									author: resp.data.items[0].snippet.channelTitle,
-									thumbnailUrl: resp.data.items[0].snippet.thumbnails.standard.url
+									thumbnailUrl: resp.data.items[0].snippet.thumbnails.default.url
 								};
 
 								if(!M2D_YTAPIUtils.doesVideoMetadataExistInCache(videoId)) {
@@ -148,7 +148,7 @@ const M2D_YTAPIUtils = {
 	isUrlParsable: (url: string) => YT_URL_REGEX.test(url),
 	parseUrl: (url: string) => new Promise<string>((res, rej) => {
 		if(M2D_YTAPIUtils.isUrlParsable(url)) {
-			return (YT_URL_REGEX.exec(url) as RegExpExecArray)[1];
+			res((YT_URL_REGEX.exec(url) as RegExpExecArray)[1]);
 		} else rej({
 			type: M2D_EErrorTypes.YTAPI,
 			subtype: M2D_EYTAPIErrorSubtypes.WrongURL,

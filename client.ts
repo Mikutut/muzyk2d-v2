@@ -6,6 +6,7 @@
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
 	import { M2D_VoiceUtils } from "./voice";
 	import { M2D_YTAPIUtils } from "./youtubeapi";
+	import { M2D_PlaylistUtils } from "./playlist";
 //#endregion
 
 //#region Types
@@ -126,6 +127,7 @@ const M2D_ClientUtils = {
 				.then(() => M2D_CommandUtils.initCommandCapabilities())
 				.then(() => M2D_ConfigUtils.initConfigCapabilities())
 				.then(() => M2D_VoiceUtils.initVoiceCapabilities())
+				.then(() => M2D_PlaylistUtils.initPlaylistCapabilities())
 				.then(() => M2D_YTAPIUtils.initYTAPICapabilities())
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
@@ -154,7 +156,16 @@ const M2D_ClientUtils = {
 										};
 
 										M2D_ClientUtils.executeMessageCommand(parsedMessage, suppParameters)
-											.catch((err: M2D_Error) => {return;});
+											.catch((err: M2D_Error) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+												embeds: [
+													M2D_GeneralUtils.embedBuilder({
+														type: "error",
+														title: `Błąd!`,
+														description: `Wystąpił błąd podczas **wykonywania komendy** \`${parsedMessage.fullCommand}\`.\n\n**Oznaczenie błędu**: \`${M2D_GeneralUtils.getErrorString(err)}\`\n**Dane o błędzie**: \`${JSON.stringify(err.data)}\``
+													})
+												]
+											}))
+											.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Wystąpił błąd podczas wysyłania wiadomości zwrotnej o błędzie!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 									})
 								)
 								.catch(() => {return;})
