@@ -22,6 +22,7 @@
 		const enum M2D_EVoiceErrorSubtypes {
 			Connected = "CONNECTED",
 			Disconnected = "DISCONNECTED",
+			Destroyed = "DESTROYED",
 			WrongChannelType = "WRONG_CHANNEL_TYPE",
 			UserNotConnectedToVoiceChannel = "USER_NOT_CONNECTED_TO_VOICE_CHANNEL"
 		};
@@ -32,6 +33,11 @@
 			}
 		};
 		interface M2D_IVoiceDisconnectedError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		};
+		interface M2D_IVoiceDestroyedError extends M2D_IError {
 			data: {
 				guildId: string;
 			}
@@ -50,7 +56,8 @@
 			}
 		};
 		type M2D_VoiceError = M2D_IVoiceConnectedError |
-			M2D_IVoiceDisconnectedError |
+			M2D_IVoiceDisconnectedError |		
+			M2D_IVoiceDestroyedError |
 			M2D_IVoiceWrongChannelTypeError |
 			M2D_IVoiceUserNotConnectedToVoiceChannelError;
 	//#endregion
@@ -116,11 +123,11 @@ const M2D_VoiceUtils = {
 			} else res(false);
 		} else rej({
 			type: M2D_EErrorTypes.Voice,
-			subtype: M2D_EVoiceErrorSubtypes.Disconnected,
+			subtype: M2D_EVoiceErrorSubtypes.Destroyed,
 			data: {
 				guildId
 			}
-		} as M2D_IVoiceDisconnectedError);
+		} as M2D_IVoiceDestroyedError);
 	}),
 	createVoiceConnection: (guildId: string, channelId: string) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Nawiązywanie połączenia z kanałem głosowym o ID "${channelId}" na serwerze o ID "${guildId}"...`)
@@ -149,7 +156,7 @@ const M2D_VoiceUtils = {
 							.catch(err => Promise.reject(err));	
 					})
 					.catch((err: M2D_VoiceError) => {
-						if(err.subtype === M2D_EVoiceErrorSubtypes.Disconnected) {
+						if(err.subtype === M2D_EVoiceErrorSubtypes.Destroyed) {
 							return;
 						} else return Promise.reject(err);
 					})
@@ -265,11 +272,11 @@ const M2D_VoiceUtils = {
 				});
 		} else rej({
 			type: M2D_EErrorTypes.Voice,
-			subtype: M2D_EVoiceErrorSubtypes.Disconnected,
+			subtype: M2D_EVoiceErrorSubtypes.Destroyed,
 			data: {
 				guildId
 			}
-		} as M2D_IVoiceDisconnectedError);
+		} as M2D_IVoiceDestroyedError);
 	}),
 	destroyVoiceConnection: (guildId: string) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Zainicjowano rozłączenie z kanałem głosowym na serwerze o ID "${guildId}"...`)
@@ -284,11 +291,11 @@ const M2D_VoiceUtils = {
 				} else M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas rozłączania z kanałem głosowym!`, `Powód: Nie podłączono do żadnego kanału głosowego`])
 					.then(() => rej({
 						type: M2D_EErrorTypes.Voice,
-						subtype: M2D_EVoiceErrorSubtypes.Disconnected,
+						subtype: M2D_EVoiceErrorSubtypes.Destroyed,
 						data: {
 							guildId
 						}
-					} as M2D_IVoiceDisconnectedError));
+					} as M2D_IVoiceDestroyedError));
 			});
 	}),
 	initVoiceCapabilities: () => new Promise<void>((res, rej) => {
@@ -391,6 +398,58 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 				}
 			} else rej(error);
 		})
+	},
+	{
+		name: "odłącz",
+		category: M2D_CATEGORIES.voice,
+		aliases: ["od", "wypierdalaj", "spierdalaj"],
+		parameters: [],
+		description: "Odłącza Muzyka2D z obecnego kanału głosowego",
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				M2D_VoiceUtils.isVoiceConnectionDisconnected(guild.id)
+					.then((isDis) => {
+						if(!isDis) {
+							M2D_VoiceUtils.destroyVoiceConnection(guild.id)
+								.then(() => {
+									// TODO: Implement message reply
+									res();
+								})
+								.catch(err => rej(err));
+						} else rej({
+							type: M2D_EErrorTypes.Voice,
+							subtype: M2D_EVoiceErrorSubtypes.Disconnected,
+							data: {
+								guildId: guild.id
+							}
+						} as M2D_IVoiceDisconnectedError);
+					})
+					.catch((err) => rej(err));
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				const errMessage = M2D_GeneralUtils.getErrorString(error);
+
+				if(errMessage === "VOICE_DESTROYED" || errMessage === "VOICE_DISCONNECTED") {
+					// TODO: Implement message reply
+					res();
+				} else rej(error);
+			} else rej(error);
+		})
 	}
 ];
 
@@ -398,7 +457,7 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 	export type {
 		M2D_IVoiceConnection,
 		M2D_IVoiceConnectedError,
-		M2D_IVoiceDisconnectedError,
+		M2D_IVoiceDestroyedError,
 		M2D_IVoiceUserNotConnectedToVoiceChannelError,
 		M2D_VoiceError
 	};
