@@ -21,8 +21,8 @@
 		"overrideOnly": false
 	},
 	{
-		"name": "InactiveTimeout",
-		"label": "NieaktywnyTimeout",
+		"name": "inactiveTimeout",
+		"label": "nieaktywnyTimeout",
 		"description": "Ilość czasu (w sekundach), po którym nieaktywny Muzyk2D opuści kanał głosowy",
 		"overridable": false,
 		"overrideOnly": false

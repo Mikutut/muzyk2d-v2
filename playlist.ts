@@ -3,9 +3,9 @@
 	import { nanoid } from "nanoid";
 	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { M2D_ICommand, M2D_ICommandParameterDesc, M2D_ICommandCategory, M2D_CATEGORIES, M2D_ICommandSuppParameters, M2D_CommandUtils, M2D_ICommandsMissingSuppParametersError, M2D_ECommandsErrorSubtypes } from "./commands"
-import { M2D_EYTAPIErrorSubtypes, M2D_IYTAPIVideoMetadata, M2D_IYTAPIWrongUrlError, M2D_YTAPIUtils } from "youtubeapi";
-import { GuildMember } from "discord.js";
-import { M2D_ClientUtils } from "client";
+	import { M2D_EYTAPIErrorSubtypes, M2D_IYTAPIVideoMetadata, M2D_IYTAPIWrongUrlError, M2D_YTAPIUtils } from "./youtubeapi";
+	import { GuildMember } from "discord.js";
+	import { M2D_ClientUtils } from "./client";
 //#endregion
 
 //#region Types
@@ -209,6 +209,38 @@ const M2D_PlaylistUtils = {
 							guildId
 						}
 					} as M2D_IPlaylistEndOfPlaylistReachedError)
+				} else rej({
+					type: M2D_EErrorTypes.Playlist,
+					subtype: M2D_EPlaylistErrorSubtypes.EmptyPlaylist,
+					data: {
+						guildId
+					}
+				} as M2D_IPlaylistEmptyPlaylistError);
+			})
+			.catch(() => rej({
+				type: M2D_EErrorTypes.Playlist,
+				subtype: M2D_EPlaylistErrorSubtypes.NoPlaylist,
+				data: {
+					guildId
+				}
+			} as M2D_IPlaylistNoPlaylistError));
+	}),
+	getEntry: (guildId: string, entryId: string) => new Promise<M2D_IPlaylistEntry>((res, rej) => {
+		M2D_PlaylistUtils.getPlaylist(guildId)
+			.then((pl) => {
+				if(pl.length > 0) {
+					const pe = pl.find((v) => v.id === entryId);
+
+					if(pe) {
+						res(pe);
+					} else rej({
+						type: M2D_EErrorTypes.Playlist,
+						subtype: M2D_EPlaylistErrorSubtypes.NoEntry,
+						data: {
+							guildId,
+							entryId
+						}
+					} as M2D_IPlaylistNoEntryError);
 				} else rej({
 					type: M2D_EErrorTypes.Playlist,
 					subtype: M2D_EPlaylistErrorSubtypes.EmptyPlaylist,

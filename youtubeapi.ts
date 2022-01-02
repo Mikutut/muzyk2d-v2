@@ -1,7 +1,10 @@
 //#region Imports
+	import { Readable } from "stream";
 	import axios, { AxiosError, AxiosResponse } from "axios";	
 	import { M2D_LogUtils } from "./log";
-	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError } from "./utils";
+	import { M2D_ErrorSubtypes } from "./utils";
+	import { M2D_EErrorTypes, M2D_EGeneralErrorSubtypes, M2D_GeneralUtils, M2D_IError, M2D_IUnknownError } from "./utils";
+	import ytdl from "ytdl-core-discord";
 //#endregion
 
 //#region Types
@@ -144,6 +147,32 @@ const M2D_YTAPIUtils = {
 						data: {}
 					} as M2D_IYTAPIQuotaExceededError));
 			});
+	}),
+	getVideoStream: (url: string) => new Promise<Readable>((res, rej) => {
+		if(M2D_YTAPIUtils.isUrlParsable(url)) {
+			M2D_LogUtils.logMessage(`info`, `Pobieranie strumienia audio wideo o URL "${url}" poprzez ytdl...`)
+				.then(() => ytdl(url, {
+					quality: "highestaudio"
+				}))
+				.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumien audio wideo o URL "${url}"!`)
+						.then(() => stream)
+				)
+				.then((stream: Readable) => res(stream))
+				.catch(() => M2D_LogUtils.logMessage(`error`, `Wystąpił błąd podczas pobierania strumienia audio!`))
+				.then(() => rej({
+					type: M2D_EErrorTypes.YTAPI,
+					subtype: "UNKNOWN",
+					data: {
+						errorData: null
+					}
+				} as M2D_IUnknownError));
+		} else rej({
+			type: M2D_EErrorTypes.YTAPI,
+			subtype: M2D_EYTAPIErrorSubtypes.WrongURL,
+			data: {
+				url
+			}
+		} as M2D_IYTAPIWrongUrlError)
 	}),
 	isUrlParsable: (url: string) => YT_URL_REGEX.test(url),
 	parseUrl: (url: string) => new Promise<string>((res, rej) => {
