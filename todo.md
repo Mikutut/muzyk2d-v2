@@ -24,24 +24,24 @@
   - [x] Implement dev-only/not invokable by chat commands
 - [ ] Implement voice features:
   - [x] Implement joining/leaving voice channels
-  - [ ] Implement proper voice connection handling:
+  - [x] Implement proper voice connection handling:
     - [x] Handle unexpected connection loses
     - [x] Prevent Discord API library from crashing (that might be hard since I don't know what was crashing it last time ¯\_(ツ)_/¯)
   - [ ] Implement no users in channel/long client inactivity detection
-- [ ] Implement data collection through YouTube API:
-  - [ ] Get YouTube Data API access tokens
-  - [ ] Implement collecting metadata about videos from YouTube
-  - [ ] Add appropriate interfaces for needed data only
-  - [ ] Implement caching metadata to limit API requests
+- [x] Implement data collection through YouTube API:
+  - [x] Get YouTube Data API access tokens
+  - [x] Implement collecting metadata about videos from YouTube
+  - [x] Add appropriate interfaces for needed data only
+  - [x] Implement caching metadata to limit API requests
 - [ ] Implement audio playback:
   - [ ] Implement downloading/playing video stream off of YouTube
-  - [ ] Implement playlist functionality:
-    - [ ] Add global playlist
-    - [ ] Implement utility functions (adding/deleting playlist entries, flushing playlist etc.)
-    - [ ] Implement bot state awareness (active/idle)
-    - [ ] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
-    - [ ] Make "add" command automatically play entry if playlist was empty
+  - [x] Implement playlist functionality:
+    - [x] Add playlist per every guild
+    - [x] Implement utility functions (adding/deleting playlist entries, flushing playlist etc.)
+  - [ ] Implement bot state awareness (active/idle)
+  - [ ] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
   - [ ] Make "play" command automatically join bot to the voice channel
+- [ ] Implement "help" command
 - [ ] Implement Rich Presence
 - [ ] Implement status change
 - [ ] Design Muzyk2D documentation:
