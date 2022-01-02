@@ -9,6 +9,7 @@
 	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError, M2D_VoiceUtils } from "./voice";
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError } from "./playlist";
 	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "./playback";
+	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
 //#endregion
 
 //#region Types
@@ -21,7 +22,7 @@
 		Voice = "VOICE",
 		Playback = "PLAYBACK",
 		Playlist = "PLAYLIST",
-		YouTubeAPI = "YOUTUBEAPI",
+		YTAPI = "YOUTUBEAPI",
 		Unknown = "UNKNOWN"
 	};
 	type M2D_ErrorSubtypes = "UNKNOWN" |
@@ -32,7 +33,8 @@
 		M2D_ECommandsErrorSubtypes |
 		M2D_EVoiceErrorSubtypes |
 		M2D_EPlaylistErrorSubtypes |
-		M2D_EPlaybackErrorSubtypes;
+		M2D_EPlaybackErrorSubtypes |
+		M2D_EYTAPIErrorSubtypes;
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
@@ -46,7 +48,8 @@
 		M2D_CommandsError |
 		M2D_VoiceError |
 		M2D_PlaylistError |
-		M2D_PlaybackError;
+		M2D_PlaybackError |
+		M2D_YTAPIError;
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
@@ -135,6 +138,9 @@ const M2D_GeneralUtils = {
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_VoiceUtils.voiceExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
+			.then(() => M2D_YTAPIUtils.YTAPIExitHandler()
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => process.exit(exitCode));
