@@ -1,4 +1,5 @@
 //#region Imports
+	import { nanoid } from "nanoid";
 	import { M2D_EErrorTypes, M2D_GeneralUtils, M2D_IError } from "./utils";
 	import { VoiceConnection, AudioPlayer, AudioResource, joinVoiceChannel, DiscordGatewayAdapterCreator, VoiceConnectionState, VoiceConnectionStatus } from "@discordjs/voice";
 	import { Guild, GuildBasedChannel, GuildMember, VoiceChannel } from "discord.js";
@@ -9,6 +10,7 @@
 
 //#region Types
 	interface M2D_IVoiceConnection {
+		id: string;
 		guildId: string;
 		channelId: string;
 		voiceConnection: VoiceConnection;
@@ -95,20 +97,40 @@ const M2D_VoiceUtils = {
 												"SPEAK",
 												"USE_VAD"
 											])) {
-												const vC = joinVoiceChannel({
-													channelId: channel.id,
-													guildId: guild.id,
-													adapterCreator: guild.voiceAdapterCreator as DiscordGatewayAdapterCreator
-												});
-												// TODO: Add state change handler
-												M2D_VOICE_CONNECTIONS.push({
-													guildId: guild.id,
-													channelId: channel.id,
-													voiceConnection: vC,
-													noVCMembersElapsedTime: 0
-												});
-												M2D_LogUtils.logMessage(`success`, `Pomyślnie nawiązano połączenie z kanałem głosowym "${channel.name}" na serwerze "${guild.name}"!`)
-													.then(() => res());
+												const vCID = nanoid(10);
+												M2D_LogUtils.logMessage(`info`, `ID nowego połączenia: "${vCID}"`)
+													.then(() => {
+														const vC = joinVoiceChannel({
+															channelId: channel.id,
+															guildId: guild.id,
+															adapterCreator: guild.voiceAdapterCreator as DiscordGatewayAdapterCreator
+														});
+														vC.on("stateChange", (oldState, newState) => {
+															const oldStatusString: string = (oldState.status === VoiceConnectionStatus.Connecting) ? "CONNECTING" :
+																(oldState.status === VoiceConnectionStatus.Destroyed) ? "DESTROYED" :
+																(oldState.status === VoiceConnectionStatus.Disconnected) ? "DISCONNECTED" :
+																(oldState.status === VoiceConnectionStatus.Ready) ? "READY" :
+																(oldState.status === VoiceConnectionStatus.Signalling) ? "SIGNALLING" : 
+																"UNKNOWN";
+															const newStatusString: string = (newState.status === VoiceConnectionStatus.Connecting) ? "CONNECTING" :
+																(newState.status === VoiceConnectionStatus.Destroyed) ? "DESTROYED" :
+																(newState.status === VoiceConnectionStatus.Disconnected) ? "DISCONNECTED" :
+																(newState.status === VoiceConnectionStatus.Ready) ? "READY" :
+																(newState.status === VoiceConnectionStatus.Signalling) ? "SIGNALLING" : 
+																"UNKNOWN";
+
+															M2D_LogUtils.logMessage(`info`, `VCID: "${vCID}" - nastąpiła zmiana stanu z "${oldStatusString}" do "${newStatusString}"`);
+														});
+														M2D_VOICE_CONNECTIONS.push({
+															id: vCID,
+															guildId: guild.id,
+															channelId: channel.id,
+															voiceConnection: vC,
+															noVCMembersElapsedTime: 0
+														});
+														M2D_LogUtils.logMessage(`success`, `Pomyślnie nawiązano połączenie z kanałem głosowym "${channel.name}" na serwerze "${guild.name}"!`)
+															.then(() => res());
+													});
 											} else M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas nawiązywania połączenia z kanałem głosowym!`, `Powód: Brakujące uprawnienia`)
 												.then(() => rej({
 													type: M2D_EErrorTypes.Client,
