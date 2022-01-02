@@ -2,6 +2,7 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_GeneralUtils, M2D_IGeneralNoEnvVariableError, M2D_IError, M2D_EErrorTypes, M2D_Error } from "./utils";
 	import * as fs from "fs/promises";
+import { config } from "dotenv";
 //#endregion
 
 //#region Types
@@ -101,20 +102,21 @@ const M2D_ConfigUtils = {
 			.then((val) => res(val.length > 0))
 			.catch((err) => rej(err));	
 	}),
-	isConfigEntryInScheme: (keyorlabel: string): boolean => M2D_CONFIG_SCHEME.filter((v) => v.name === keyorlabel || v.label === keyorlabel).length > 0,
-	getConfigValue: (key: string, guildId?: string) => new Promise<string>((res, rej) => {
+	isConfigEntryKeyInScheme: (key: string): boolean => M2D_CONFIG_SCHEME.find((v) => v.name === key) !== undefined,
+	isConfigEntryLabelInScheme: (label: string): boolean => M2D_CONFIG_SCHEME.find((v) => v.label === label) !== undefined,
+	getConfigValue: (key: string, guildId: string | null = null, logToConsole = true, logToFile = true) => new Promise<string>((res, rej) => {
 		if(guildId) {
-			M2D_ConfigUtils.getConfigOverrideValue(guildId, key)
+			M2D_ConfigUtils.getConfigOverrideValue(guildId, key, logToConsole, logToFile)
 				.then((val) => res(val))
 				.catch((err) => {
 					if(err.subtype === M2D_EConfigErrorSubtypes.MissingKey) {
 						rej(err as M2D_IConfigMissingKeyError);
-					} else return M2D_ConfigUtils.getGlobalConfigValue(key)
+					} else return M2D_ConfigUtils.getGlobalConfigValue(key, logToConsole, logToFile)
 						.then((val) => res(val))
 						.catch((err) => rej(err));
 				});
 		} else {
-			M2D_ConfigUtils.getGlobalConfigValue(key)
+			M2D_ConfigUtils.getGlobalConfigValue(key, logToConsole, logToFile)
 				.then((val) => res(val))
 				.catch((err) => rej(err));
 		}
@@ -123,24 +125,46 @@ const M2D_ConfigUtils = {
 		M2D_LogUtils.logMessage("info", `Rozpoczęto proces wyszukiwania wartości zastępującej dla wartości konfiguracyjnej o kluczu "${key}" na serwerze o ID "${guildId}"...`)
 
 		let cKey = key;
-		if(M2D_ConfigUtils.isConfigEntryInScheme(cKey)) {
-			M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
-				.then((_key) => {cKey = _key})
-				.catch(() => {return;})
-				.then(() => M2D_LogUtils.logMessage("info", `Znaleziono wartość konfiguracyjną o kluczu "${cKey}"! Szukanie wartości zastępującej...`)
-					.then(() => {
-						const configEntry = M2D_CONFIG.find((v) => v.name === cKey) as M2D_IConfigEntry;
-						M2D_ConfigUtils.getConfigSchemeEntry(cKey)
-							.then((schemeEntry: M2D_IConfigSchemeEntry) => {
+
+		if(M2D_ConfigUtils.isConfigEntryLabelInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest etykietą wartości konfiguracyjnej - szukanie klucza...`)
+				.then(() => M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
+					.then((_key) => { cKey = _key; })
+				);
+		} else if(M2D_ConfigUtils.isConfigEntryKeyInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest kluczem wartości konfiguracyjnej.`);
+		} else M2D_LogUtils.logMessage(`error`, `"${cKey}" nie jest ani etykietą, ani kluczem wartości konfiguracyjnej!`)
+			.then(() => rej({
+					type: M2D_EErrorTypes.Config,
+					subtype: M2D_EConfigErrorSubtypes.MissingKey,
+					data: {
+						key: cKey
+					}
+				} as M2D_IConfigMissingKeyError)
+			);
+			
+		M2D_ConfigUtils.getConfigSchemeEntry(cKey)
+			.then((schemeEntry: M2D_IConfigSchemeEntry) => M2D_LogUtils.logMessage(`info`, `Znaleziono wpis "${cKey}" w schemacie konfiguracji - uzyskiwanie wpisu we właściwej konfiguracji...`)
+				.then(() => {
+					const configEntry = M2D_CONFIG.find((v) => v.name === cKey);
+
+					if(configEntry) {
+						M2D_LogUtils.logMessage(`success`, `Uzyskano wpis "${cKey}" z konfiguracji!`)
+							.then(() => {
 								if(schemeEntry.overridable) {
-									const configGuildOverrideEntry: M2D_IConfigGuildEntry | undefined = configEntry.guildOverrides.find((v) => v.guildId === guildId);
+									if(!configEntry.guildOverrides) {
+										const cEIDX = M2D_CONFIG.indexOf(configEntry);
+										M2D_CONFIG[cEIDX].guildOverrides = [];
+									}
+
+									const configGuildOverrideEntry = configEntry.guildOverrides.find((v) => v.guildId === guildId);
 
 									if(configGuildOverrideEntry) {
 										const cEIDX = M2D_CONFIG.indexOf(configEntry);
 										const cGOIDX = configEntry.guildOverrides.indexOf(configGuildOverrideEntry);
 
 										M2D_CONFIG[cEIDX].guildOverrides[cGOIDX].value = value;
-										M2D_LogUtils.logMessage(`success`, `Pomyślnie zmieniono wartość wartości zastępującej wartość konfiguracyjną o kluczu "${key}" dla serwera o ID "${guildId}" na "${value}"!`)
+										M2D_LogUtils.logMessage(`success`, `Pomyślnie zmieniono wartość zastępującą klucza "${key}" dla serwera o ID "${guildId}" na "${value}"!`)
 											.then(() => res());
 									} else {
 										const cEIDX = M2D_CONFIG.indexOf(configEntry);
@@ -149,92 +173,148 @@ const M2D_ConfigUtils = {
 											guildId,
 											value
 										});
-										M2D_LogUtils.logMessage(`success`, `Pomyślnie zmieniono wartość wartości zastępującej wartość konfiguracyjną o kluczu "${key}" dla serwera o ID "${guildId}" na "${value}"!`)
+										M2D_LogUtils.logMessage(`success`, `Pomyślnie zmieniono wartość zastępującą klucza "${key}" dla serwera o ID "${guildId}" na "${value}"!`)
 											.then(() => res());
 									}
-								} else M2D_LogUtils.logMessage("error", `Wartość konfiguracyjna o kluczu "${cKey}" jest niezastępywalna!`)
+								} else M2D_LogUtils.logMessage(`error`, `Wartość klucza "${cKey}" jest niezastępywalna!`)
 									.then(() => rej({
 										type: M2D_EErrorTypes.Config,
 										subtype: M2D_EConfigErrorSubtypes.KeyNotOverridable,
 										data: {
 											key
 										}
-									} as M2D_IConfigKeyNotOverridableError));
-							})
-							.catch(() => {return;})
-					})
+									} as M2D_IConfigKeyNotOverridableError));	
+							});	
+					} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w konfiguracji!`)
+						.then(() => rej({
+							type: M2D_EErrorTypes.Config,
+							subtype: M2D_EConfigErrorSubtypes.MissingKey,
+							data: {
+								key: cKey
+							}
+						} as M2D_IConfigMissingKeyError));
+				})
+			)
+			.catch(() => M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w schemacie konfiguracji!`)
+				.then(() => rej({
+						type: M2D_EErrorTypes.Config,
+						subtype: M2D_EConfigErrorSubtypes.MissingKey,
+						data: {
+							key: cKey
+						}
+					} as M2D_IConfigMissingKeyError)
+				)
+			);	
+	}),
+	getGlobalConfigValue: (key: string, logToConsole = true, logToFile = true) => new Promise<string>((res, rej) => {
+		M2D_LogUtils.logMessage("info", `Rozpoczęto proces wyszukiwania wartości konfiguracyjnej o kluczu "${key}"...`, logToConsole, logToFile)
+		let cKey = key;
+
+		if(M2D_ConfigUtils.isConfigEntryLabelInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest etykietą wartości konfiguracyjnej - szukanie klucza...`, logToConsole, logToFile)
+				.then(() => M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
+					.then((_key) => { cKey = _key; })
 				);
-		} else M2D_LogUtils.logMessage("error", `Próbowano uzyskać dostęp do wartości konfiguracyjnej o kluczu "${cKey}", lecz wartość taka nie istnieje!`)
-		.then(() => 
-			rej({
-				type: M2D_EErrorTypes.Config,
-				subtype: M2D_EConfigErrorSubtypes.MissingKey,
-				data: {
-					key
-				}
-			} as M2D_IConfigMissingKeyError)
-		); 
-	}),
-	getGlobalConfigValue: (key: string) => new Promise<string>((res, rej) => {
-		M2D_LogUtils.logMessage("info", `Rozpoczęto proces wyszukiwania wartości konfiguracyjnej o kluczu "${key}"...`)
-		if(M2D_ConfigUtils.isConfigEntryInScheme(key)) {
-			let cKey: string = key;
-			M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
-				.then((_key) => { cKey = _key })
-				.catch(() => {return;})
-				.then(() => {
-					const configEntry = M2D_CONFIG.find((v) => v.name === cKey) as M2D_IConfigEntry;
-
-					M2D_LogUtils.logMessage("success", `Znaleziono wartość konfiguracyjną o kluczu "${key}"!`)
-						.then(() => {
-							M2D_ConfigUtils.getConfigSchemeEntry(cKey)
-								.then((schemeEntry: M2D_IConfigSchemeEntry) => {
-									if(!schemeEntry.overrideOnly) {
-										res(configEntry.value);
-									} else {
-										M2D_LogUtils.logMessage("error", `Próbowano odczytać wartość konfiguracyjną o kluczu "${key}", lecz wartość ta jest tylko zastępowywalna!`)
-											.then(() => rej({
-												type: M2D_EErrorTypes.Config,
-												subtype: M2D_EConfigErrorSubtypes.KeyOverrideOnly,
-												data: {
-													key
-												}
-											} as M2D_IConfigKeyOverrideOnlyError));
-									}
-								})
-								.catch(() => {return;});	
-						});
-				});
-		} else M2D_LogUtils.logMessage(`error`, `Próbowano odczytać wartość konfiguracyjną nienależącą do schematu: "${key}"`)
+		} else if(M2D_ConfigUtils.isConfigEntryKeyInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest kluczem wartości konfiguracyjnej.`, logToConsole, logToFile);
+		} else M2D_LogUtils.logMessage(`error`, `"${cKey}" nie jest ani etykietą, ani kluczem wartości konfiguracyjnej!`, logToConsole, logToFile)
 			.then(() => rej({
-				type: M2D_EErrorTypes.Config,
-				subtype: M2D_EConfigErrorSubtypes.MissingKey,
-				data: {
-					key
-				}
-			} as M2D_IConfigMissingKeyError));
-	}),
-	getConfigOverrideValue: (guildId: string, key: string) => new Promise<string>((res, rej) => {
-		M2D_LogUtils.logMessage("info", `Rozpoczęto proces wyszukiwania wartości zastępującej dla wartości konfiguracyjnej o kluczu "${key}" na serwerze o ID "${guildId}"...`)
-
-		if(M2D_ConfigUtils.isConfigEntryInScheme(key)) {
-			let cKey: string = key;
-			M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
-				.then((_key) => { cKey = _key })
-				.catch(() => {return;})
+					type: M2D_EErrorTypes.Config,
+					subtype: M2D_EConfigErrorSubtypes.MissingKey,
+					data: {
+						key: cKey
+					}
+				} as M2D_IConfigMissingKeyError)
+			);
+			
+		M2D_ConfigUtils.getConfigSchemeEntry(cKey)
+			.then((schemeEntry: M2D_IConfigSchemeEntry) => M2D_LogUtils.logMessage(`info`, `Znaleziono wpis "${cKey}" w schemacie konfiguracji - uzyskiwanie wpisu we właściwej konfiguracji...`, logToConsole, logToFile)
 				.then(() => {
-					const configEntry = M2D_CONFIG.find((v) => v.name === cKey) as M2D_IConfigEntry;
-					M2D_LogUtils.logMessage("info", `Znaleziono wartość konfiguracyjną o kluczu "${key}"! Szukanie wartości zastępującej...`)
-						.then(() => M2D_ConfigUtils.getConfigSchemeEntry(cKey)
-							.then((schemeEntry: M2D_IConfigSchemeEntry) => {
-								if(schemeEntry.overridable) {
-									const configGuildOverrideEntry: M2D_IConfigGuildEntry | undefined = configEntry.guildOverrides.find((v) => v.guildId === guildId);
+					const configEntry = M2D_CONFIG.find((v) => v.name === cKey);
 
-									if(configGuildOverrideEntry) {
-										M2D_LogUtils.logMessage("success", `Znaleziono wartość zastępującą wartość konfiguracyjną o kluczu "${key}" dla serwera o ID "${guildId}"!`)
-											.then(() => res(configGuildOverrideEntry.value));
-									} else {
-										M2D_LogUtils.logMessage("error", `Wartość konfiguracyjna o kluczu "${key}" nie posiada wartości zastępującej dla serwera o ID "${guildId}"!`)
+					if(configEntry) {
+						M2D_LogUtils.logMessage(`success`, `Uzyskano wpis "${cKey}" z konfiguracji!`, logToConsole, logToFile)
+							.then(() => {
+								if(!schemeEntry.overrideOnly) {
+									res(configEntry.value);
+								} else M2D_LogUtils.logMessage(`error`, `Klucz "${cKey}" nie posiada globalnej wartości!`, logToConsole, logToFile)
+									.then(() => rej({
+										type: M2D_EErrorTypes.Config,
+										subtype: M2D_EConfigErrorSubtypes.KeyOverrideOnly,
+										data: {
+											key: cKey
+										}
+									} as M2D_IConfigKeyOverrideOnlyError));
+							});	
+					} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w konfiguracji!`, logToConsole, logToFile)
+						.then(() => rej({
+							type: M2D_EErrorTypes.Config,
+							subtype: M2D_EConfigErrorSubtypes.MissingKey,
+							data: {
+								key: cKey
+							}
+						} as M2D_IConfigMissingKeyError));
+				})
+			)
+			.catch(() => M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w schemacie konfiguracji!`, logToConsole, logToFile)
+				.then(() => rej({
+						type: M2D_EErrorTypes.Config,
+						subtype: M2D_EConfigErrorSubtypes.MissingKey,
+						data: {
+							key: cKey
+						}
+					} as M2D_IConfigMissingKeyError)
+				)
+			);	
+	}),
+	getConfigOverrideValue: (guildId: string, key: string, logToConsole = true, logToFile = true) => new Promise<string>((res, rej) => {
+		M2D_LogUtils.logMessage("info", `Rozpoczęto proces wyszukiwania wartości zastępującej dla wartości konfiguracyjnej o kluczu "${key}" na serwerze o ID "${guildId}"...`, logToConsole, logToFile)
+
+		let cKey: string = key;
+
+		if(M2D_ConfigUtils.isConfigEntryLabelInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest etykietą wartości konfiguracyjnej - szukanie klucza...`, logToConsole, logToFile)
+				.then(() => M2D_ConfigUtils.getConfigEntryKeyFromLabel(cKey)
+					.then((_key) => { cKey = _key; })
+				);
+		} else if(M2D_ConfigUtils.isConfigEntryKeyInScheme(cKey)) {
+			M2D_LogUtils.logMessage(`info`, `"${cKey}" jest kluczem wartości konfiguracyjnej.`, logToConsole, logToFile);
+		} else M2D_LogUtils.logMessage(`error`, `"${cKey}" nie jest ani etykietą, ani kluczem wartości konfiguracyjnej!`, logToConsole, logToFile)
+			.then(() => rej({
+					type: M2D_EErrorTypes.Config,
+					subtype: M2D_EConfigErrorSubtypes.MissingKey,
+					data: {
+						key: cKey
+					}
+				} as M2D_IConfigMissingKeyError)
+			);
+			
+		M2D_ConfigUtils.getConfigSchemeEntry(cKey)
+			.then((schemeEntry: M2D_IConfigSchemeEntry) => M2D_LogUtils.logMessage(`info`, `Znaleziono wpis "${cKey}" w schemacie konfiguracji - uzyskiwanie wpisu we właściwej konfiguracji...`, logToConsole, logToFile)
+				.then(() => {
+					const configEntry = M2D_CONFIG.find((v) => v.name === cKey);
+
+					if(configEntry) {
+						M2D_LogUtils.logMessage(`success`, `Uzyskano wpis "${cKey}" z konfiguracji! - szukanie wartości zastępującej...`, logToConsole, logToFile)
+							.then(() => {
+								if(schemeEntry.overridable) {
+									if(configEntry.guildOverrides) {
+										if(configEntry.guildOverrides.length > 0) {
+											const configGuildEntry = configEntry.guildOverrides.find((v) => v.guildId === guildId);
+
+											if(configGuildEntry) {
+												M2D_LogUtils.logMessage("success", `Znaleziono wartość zastępującą klucza "${cKey}" dla serwera o ID "${guildId}"!`, logToConsole, logToFile)
+													.then(() => res(configGuildEntry.value));
+											} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono wartości zastępującej klucza "${cKey}" dla serwera o ID "${guildId}"!`, logToConsole, logToFile)
+												.then(() => rej({
+													type: M2D_EErrorTypes.Config,
+													subtype: M2D_EConfigErrorSubtypes.OverrideNotPresent,
+													data: {
+														key,
+														guildId
+													}
+												} as M2D_IConfigOverrideNotPresentError));
+										} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono wartości zastępującej klucza "${cKey}" dla serwera o ID "${guildId}"!`, logToConsole, logToFile)
 											.then(() => rej({
 												type: M2D_EErrorTypes.Config,
 												subtype: M2D_EConfigErrorSubtypes.OverrideNotPresent,
@@ -243,78 +323,47 @@ const M2D_ConfigUtils = {
 													guildId
 												}
 											} as M2D_IConfigOverrideNotPresentError));
-									}
-								} else {
-									M2D_LogUtils.logMessage("error", `Wartość konfiguracyjna o kluczu "${key}" jest niezastępywalna!`)
+									} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono wartości zastępującej klucza "${cKey}" dla serwera o ID "${guildId}"!`, logToConsole, logToFile)
 										.then(() => rej({
 											type: M2D_EErrorTypes.Config,
-											subtype: M2D_EConfigErrorSubtypes.KeyNotOverridable,
+											subtype: M2D_EConfigErrorSubtypes.OverrideNotPresent,
 											data: {
-												key
+												key,
+												guildId
 											}
-										} as M2D_IConfigKeyNotOverridableError));
-								}
-							})
-							.catch(() => {return;})
-						);
-				});	
-		} else M2D_LogUtils.logMessage(`error`, `Próbowano odczytać wartość konfiguracyjną nienależącą do schematu: "${key}"`)
-			.then(() => rej({
-				type: M2D_EErrorTypes.Config,
-				subtype: M2D_EConfigErrorSubtypes.MissingKey,
-				data: {
-					key
-				}
-			} as M2D_IConfigMissingKeyError));
-
-		// const configEntry: M2D_IConfigEntry | undefined = M2D_CONFIG.find((v) => v.name === key || v.label === key);
-
-		// if(configEntry) {
-		// 	M2D_LogUtils.logMessage("info", `Znaleziono wartość konfiguracyjną o kluczu "${key}"! Szukanie wartości zastępującej...`)
-		// 		.then(() => {
-		// 			if(configEntry.overridable) {
-		// 				const configGuildOverrideEntry: M2D_IConfigGuildEntry | undefined = configEntry.guildOverrides.find((v) => v.guildId === guildId);
-
-		// 				if(configGuildOverrideEntry) {
-		// 					M2D_LogUtils.logMessage("success", `Znaleziono wartość zastępującą wartość konfiguracyjną o kluczu "${key}" dla serwera o ID "${guildId}"!`)
-		// 						.then(() => res(configGuildOverrideEntry.value));
-		// 				} else {
-		// 					M2D_LogUtils.logMessage("error", `Wartość konfiguracyjna o kluczu "${key}" nie posiada wartości zastępującej dla serwera o ID "${guildId}"!`)
-		// 						.then(() => rej({
-		// 							type: M2D_EErrorTypes.Config,
-		// 							subtype: M2D_EConfigErrorSubtypes.OverrideNotPresent,
-		// 							data: {
-		// 								key,
-		// 								guildId
-		// 							}
-		// 						} as M2D_IConfigOverrideNotPresentError));
-		// 				}
-		// 			} else {
-		// 				M2D_LogUtils.logMessage("error", `Wartość konfiguracyjna o kluczu "${key}" jest niezastępywalna!`)
-		// 					.then(() => rej({
-		// 						type: M2D_EErrorTypes.Config,
-		// 						subtype: M2D_EConfigErrorSubtypes.KeyNotOverridable,
-		// 						data: {
-		// 							key
-		// 						}
-		// 					} as M2D_IConfigKeyNotOverridableError));
-		// 			}
-		// 		});
-		// } else { 
-		// 	M2D_LogUtils.logMessage("error", `Próbowano uzyskać dostęp do wartości konfiguracyjnej o kluczu "${key}", lecz wartość taka nie istnieje!`)
-		// 		.then(() => 
-		// 			rej({
-		// 				type: M2D_EErrorTypes.Config,
-		// 				subtype: M2D_EConfigErrorSubtypes.MissingKey,
-		// 				data: {
-		// 					key
-		// 				}
-		// 			} as M2D_IConfigMissingKeyError)
-		// 		);
-		// }
+										} as M2D_IConfigOverrideNotPresentError));
+								} else M2D_LogUtils.logMessage(`error`, `Wartość klucza "${cKey}" jest niezastępywalna!`, logToConsole, logToFile)
+									.then(() => rej({
+										type: M2D_EErrorTypes.Config,
+										subtype: M2D_EConfigErrorSubtypes.KeyNotOverridable,
+										data: {
+											key
+										}
+									} as M2D_IConfigKeyNotOverridableError));	
+							});	
+					} else M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w konfiguracji!`, logToConsole, logToFile)
+						.then(() => rej({
+							type: M2D_EErrorTypes.Config,
+							subtype: M2D_EConfigErrorSubtypes.MissingKey,
+							data: {
+								key: cKey
+							}
+						} as M2D_IConfigMissingKeyError));
+				})
+			)
+			.catch(() => M2D_LogUtils.logMessage(`error`, `Nie znaleziono klucza "${cKey}" w schemacie konfiguracji!`, logToConsole, logToFile)
+				.then(() => rej({
+						type: M2D_EErrorTypes.Config,
+						subtype: M2D_EConfigErrorSubtypes.MissingKey,
+						data: {
+							key: cKey
+						}
+					} as M2D_IConfigMissingKeyError)
+				)
+			);	
 	}),
 	getConfigEntryKeyFromLabel: (label: string) => new Promise<string>((res, rej) => {
-		if(M2D_ConfigUtils.isConfigEntryInScheme(label)) {
+		if(M2D_ConfigUtils.isConfigEntryLabelInScheme(label)) {
 			res((M2D_CONFIG_SCHEME.find((v) => v.label === label) as M2D_IConfigSchemeEntry).name);
 		} else rej({
 			type: M2D_EErrorTypes.Config,
@@ -325,7 +374,7 @@ const M2D_ConfigUtils = {
 		} as M2D_IConfigMissingLabelError);
 	}),
 	getConfigEntryLabelFromKey: (key: string) => new Promise<string>((res, rej) => {
-		if(M2D_ConfigUtils.isConfigEntryInScheme(key)) {
+		if(M2D_ConfigUtils.isConfigEntryKeyInScheme(key)) {
 			res((M2D_CONFIG_SCHEME.find((v) => v.name === key) as M2D_IConfigSchemeEntry).label);
 		} else rej({
 			type: M2D_EErrorTypes.Config,
@@ -336,7 +385,7 @@ const M2D_ConfigUtils = {
 		} as M2D_IConfigMissingKeyError);
 	}),
 	getConfigSchemeEntry: (key: string) => new Promise<M2D_IConfigSchemeEntry>((res, rej) => {
-		if(M2D_ConfigUtils.isConfigEntryInScheme(key)) {
+		if(M2D_ConfigUtils.isConfigEntryKeyInScheme(key)) {
 			res(M2D_CONFIG_SCHEME.find((v) => v.name === key) as M2D_IConfigSchemeEntry);
 		} else rej({
 			type: M2D_EErrorTypes.Config,
@@ -375,7 +424,7 @@ const M2D_ConfigUtils = {
 												M2D_CONFIG = newConfig;
 												res();
 											} else {
-												M2D_LogUtils.logMultipleMessages(`error`, `Wykryto brakujące klucze w konfiguracji, lecz nie można ich zastąpić wartościami domyślnymi. Domyślna konfiguracja nie została jeszcze wczytana!`)
+												M2D_LogUtils.logMultipleMessages(`error`, [`Wykryto brakujące klucze w konfiguracji, lecz nie można ich zastąpić wartościami domyślnymi. Domyślna konfiguracja nie została jeszcze wczytana!`])
 													.then(() => rej({
 														type: M2D_EErrorTypes.Config,
 														subtype: M2D_EConfigErrorSubtypes.NoDefaultConfig,
@@ -440,7 +489,7 @@ const M2D_ConfigUtils = {
 							M2D_CONFIG_SCHEME = JSON.parse(data) as M2D_IConfigSchemeEntry[];
 							res();
 						})
-						.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas wczytywania schematu konfiguracji z pliku "${M2D_ConfigSchemeFileLocation}".`, `Treść błędu: "${err.message}"`)
+						.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas wczytywania schematu konfiguracji z pliku "${M2D_ConfigSchemeFileLocation}".`, `Treść błędu: "${err.message}"`])
 							.then(() => rej({
 								type: M2D_EErrorTypes.Config,
 								subtype: M2D_EConfigErrorSubtypes.Filesystem,
@@ -500,7 +549,7 @@ const M2D_ConfigUtils = {
 				if(missingKeys.length === 0 && excessiveKeys.length === 0) {
 					M2D_LogUtils.logMessage(`success`, `Walidacja zakończona. Nie wykryto żadnych odchyłów.`)
 						.then(() => res());
-				} else M2D_LogUtils.logMultipleMessages(`error`, `Znaleziono odchyły w konfiguracji względem schematu.`, `Brakujące klucze: "${missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${excessiveKeys.join(", ")}"`)
+				} else M2D_LogUtils.logMultipleMessages(`error`, [`Znaleziono odchyły w konfiguracji względem schematu.`, `Brakujące klucze: "${missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${excessiveKeys.join(", ")}"`])
 					.then(() => rej({
 						type: M2D_EErrorTypes.Config,
 						subtype: M2D_EConfigErrorSubtypes.ConfigSchemeMismatch,
@@ -539,7 +588,7 @@ const M2D_ConfigUtils = {
 									.catch((err: M2D_Error) => {
 										if(M2D_GeneralUtils.getErrorString(err) === "CONFIG_CONFIG_SCHEME_MISMATCH") {
 											err = err as M2D_IConfigConfigSchemeMismatchError;
-											M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
+											M2D_LogUtils.logMultipleMessages(`error`, [`Wykryto odchylenia w domyślnej konfiguracji!`, `Muzyk2D w takim stanie nie może kontynuować pracy.`])
 												.then(() => rej(err));
 										} else rej(err);
 									});
@@ -562,7 +611,7 @@ const M2D_ConfigUtils = {
 											.catch((err: M2D_Error) => {
 												if(M2D_GeneralUtils.getErrorString(err) === "CONFIG_CONFIG_SCHEME_MISMATCH") {
 													err = err as M2D_IConfigConfigSchemeMismatchError;
-													M2D_LogUtils.logMultipleMessages(`error`, `Wykryto odchylenia w domyślnej konfiguracji!`, `Brakujące klucze: "${err.data.missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${err.data.excessiveKeys.join(", ")}"`, `Muzyk2D w takim stanie nie może kontynuować pracy.`)
+													M2D_LogUtils.logMultipleMessages(`error`, [`Wykryto odchylenia w domyślnej konfiguracji!`, `Brakujące klucze: "${err.data.missingKeys.join(", ")}"`, `Ponadprogramowe klucze: "${err.data.excessiveKeys.join(", ")}"`, `Muzyk2D w takim stanie nie może kontynuować pracy.`])
 														.then(() => rej(err));
 												} else rej(err);
 											});
@@ -570,6 +619,15 @@ const M2D_ConfigUtils = {
 							});
 					}
 				})
+			);
+	}),
+	configExitHandler: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Wyłączanie konfiguracji...`)
+			.then(() => M2D_ConfigUtils.saveConfigToFile()
+				.then(() => M2D_LogUtils.logMessage(`success`, `Wyłączono konfigurację!`)
+					.then(() => res())
+				)
+				.catch((err) => rej(err))
 			);
 	})
 };

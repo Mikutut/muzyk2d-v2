@@ -3,7 +3,7 @@
 	import { M2D_LogUtils } from "log";
 	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistUtils } from "./playlist";
 	import { M2D_GeneralUtils, M2D_Error, M2D_IError, M2D_EErrorTypes } from "./utils";
-	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceAlreadyDisconnectedError, M2D_VoiceUtils } from "./voice";
+	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceDisconnectedError, M2D_VoiceUtils } from "./voice";
 //#endregion
 
 //#region Types
@@ -66,16 +66,16 @@ const M2D_PlaybackUtils = {
 								});
 								M2D_LogUtils.logMessage(`success`, `Pomyślnie stworzono odtworzenie na serwerze o ID "${guildId}"!`)
 									.then(() => res());
-							} else M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Nie podłączono do żadnego kanału głosowego na serwerze o ID "${guildId}"`)
+							} else M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Nie podłączono do żadnego kanału głosowego na serwerze o ID "${guildId}"`])
 								.then(() => rej({
 									type: M2D_EErrorTypes.Voice,
-									subtype: M2D_EVoiceErrorSubtypes.AlreadyDisconnected,
+									subtype: M2D_EVoiceErrorSubtypes.Disconnected,
 									data: {
 										guildId
 									}
-								} as M2D_IVoiceAlreadyDisconnectedError));
+								} as M2D_IVoiceDisconnectedError));
 						})
-						.catch(() => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Playlista dla serwera o ID "${guildId}" jest pusta!`)
+						.catch(() => M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Playlista dla serwera o ID "${guildId}" jest pusta!`])
 							.then(() => rej({
 								type: M2D_EErrorTypes.Playlist,
 								subtype: M2D_EPlaylistErrorSubtypes.EmptyPlaylist,
@@ -84,7 +84,7 @@ const M2D_PlaybackUtils = {
 								}
 							} as M2D_IPlaylistEmptyPlaylistError))
 						)
-				} else M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Odtworzenie już istnieje na serwerze o ID "${guildId}"`)
+				} else M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas tworzenia odtworzenia!`, `Powód: Odtworzenie już istnieje na serwerze o ID "${guildId}"`])
 					.then(() => rej({
 						type: M2D_EErrorTypes.Playback,
 						subtype: M2D_EPlaybackErrorSubtypes.AlreadyExists,

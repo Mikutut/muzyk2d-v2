@@ -23,44 +23,85 @@
 //#region Variables
 	let M2D_LogFileLocation = `m2d.log`;
 	const M2D_LogStartingMessage = `======\nMuzyk2D - v${M2D_GeneralUtils.getMuzyk2DVersion()}\nby Marcin "Mikut" Mikuła\nMikut 2020-2022\n======\n\n`;
+	let M2D_LoggingToFileInternalSwitch = true;
+	let M2D_SaveLogsToFile = true;
 //#endregion
 
 const M2D_LogUtils = {
-	logMessage: (type: M2D_LogMessageType, message: string) => new Promise<void>((res, rej) => {
+	logMessage: (type: M2D_LogMessageType, message: string, logToConsole = true, logToFile = true) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
 		const outputMessage = `${type.toUpperCase()} | ${timestamp} | ${message}`;
 
-		fs.appendFile(M2D_LogFileLocation, `${outputMessage}\n`)
-			.catch((err) => {
-				console.error(`Message was not logged to log file! Error: "${err.message}"`);
-			})
-			.finally(() => {
-				switch(type) {
-					case "error":
-						console.error(outputMessage);
-					break;
-					case "info":
-						console.info(outputMessage);
-					break;
-					case "success":
-						console.log(outputMessage);
-					break;
-					case "warn":
-						console.warn(outputMessage);
-					break;
-				}
-				res();
-			});
+		if(M2D_LoggingToFileInternalSwitch && (logToFile && M2D_SaveLogsToFile)) {
+			fs.appendFile(M2D_LogFileLocation, `${outputMessage}\n`)
+				.catch((err) => {
+					console.error(`Message was not logged to log file! Error: "${err.message}"`);
+				})
+				.finally(() => {
+					switch(type) {
+						case "error":
+							if(logToConsole) console.error(outputMessage);
+						break;
+						case "info":
+							if(logToConsole) console.info(outputMessage);
+						break;
+						case "success":
+							if(logToConsole) console.log(outputMessage);
+						break;
+						case "warn":
+							if(logToConsole) console.warn(outputMessage);
+						break;
+					}
+					res();
+				});
+		} else {
+			if(logToConsole) {
+					switch(type) {
+						case "error":
+							console.error(outputMessage);
+						break;
+						case "info":
+							console.info(outputMessage);
+						break;
+						case "success":
+							console.log(outputMessage);
+						break;
+						case "warn":
+							console.warn(outputMessage);
+						break;
+					}
+			}
+			res();
+		}
 	}),
-	logMultipleMessages: (type: M2D_LogMessageType, ...messages: string[]) => new Promise<void>((res, rej) => {
+	logMultipleMessages: (type: M2D_LogMessageType, messages: string[], logToConsole = true, logToFile = true) => new Promise<void>((res, rej) => {
 		const timestamp = (new Date()).toISOString();
 		const outputMessages = messages.map((v) => `${type.toUpperCase()} | ${timestamp} | ${v}${(messages.indexOf(v) !== (messages.length - 1)) ? "\n" : ""}`);
 
-		fs.appendFile(M2D_LogFileLocation, `${outputMessages.join("")}\n`)
-			.catch((err) => {
-				console.error(`Message was not logged to log file! Error: "${err.message}"`);
-			})
-			.finally(() => {
+		if(M2D_LoggingToFileInternalSwitch && (logToFile && M2D_SaveLogsToFile)) {
+			fs.appendFile(M2D_LogFileLocation, `${outputMessages.join("")}\n`)
+				.catch((err) => {
+					console.error(`Message was not logged to log file! Error: "${err.message}"`);
+				})
+				.finally(() => {
+					switch(type) {
+						case "error":
+							if(logToConsole) console.error(outputMessages.join(""));
+						break;
+						case "info":
+							if(logToConsole) console.info(outputMessages.join(""));
+						break;
+						case "success":
+							if(logToConsole) console.log(outputMessages.join(""));
+						break;
+						case "warn":
+							if(logToConsole) console.warn(outputMessages.join(""));
+						break;
+					}
+					res();
+				});
+		} else {
+			if(logToConsole) {
 				switch(type) {
 					case "error":
 						console.error(outputMessages.join(""));
@@ -75,14 +116,15 @@ const M2D_LogUtils = {
 						console.warn(outputMessages.join(""));
 					break;
 				}
-				res();
-			});
+			}
+			res();
+		}
 
 	}),
 	leaveTrailingNewline: () => new Promise<void>((res, rej) => {
 		fs.appendFile(M2D_LogFileLocation, `\n`, {encoding: "utf-8"})
 			.then(() => res())
-			.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, `Nie udało się zostawić znaku nowej linii na końcu pliku "${M2D_LogFileLocation}"`, `Treść błędu: "${err.message}"`)
+			.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się zostawić znaku nowej linii na końcu pliku "${M2D_LogFileLocation}"`, `Treść błędu: "${err.message}"`])
 				.then(() => rej({
 					type: M2D_EErrorTypes.Log,
 					subtype: M2D_ELogErrorSubtypes.Filesystem,
@@ -108,9 +150,20 @@ const M2D_LogUtils = {
 					.then(() => M2D_LogUtils.logMessage("success", "Zainicjalizowano logi!")
 						.then(() => res())
 					)
-					.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, `Nie udało się dopisać startowej wiadomości do pliku "${M2D_LogFileLocation}"!`, `Treść błędu: "${err.message}"`, `Błąd ten nie wpływa na dalsze działanie programu.`)
+					.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się dopisać startowej wiadomości do pliku "${M2D_LogFileLocation}"!`, `Treść błędu: "${err.message}"`, `Błąd ten nie wpływa na dalsze działanie programu.`])
 						.then(() => res())
 					);
+			});
+	}),
+	logExitHandler: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Wyłączanie logów... Od tego momentu logi nie będą zapisywane do pliku.`)
+			.then(() => { 
+					M2D_LoggingToFileInternalSwitch = false;
+					M2D_LogUtils.leaveTrailingNewline()
+						.then(() => M2D_LogUtils.logMessage(`success`, `Wyłączono logi!`, true, false)
+							.then(() => res())
+						)
+						.catch((err) => rej(err));
 			});
 	})
 };

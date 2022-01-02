@@ -136,6 +136,10 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	config: {
 		name: "config",
 		label: "konfiguracyjne"
+	},
+	voice: {
+		name: "voice",
+		label: "głosowe"
 	}
 };
 
@@ -224,7 +228,7 @@ const M2D_CommandUtils = {
 									}
 								}) as string[];
 
-								M2D_LogUtils.logMultipleMessages(`error`, `Wykryto zduplikowane aliasy w liście komend!`, `Alias: "${al}"`, `Komendy zawierające taki alias: "${conflictingCommands.join(", ")}`)
+								M2D_LogUtils.logMultipleMessages(`error`, [`Wykryto zduplikowane aliasy w liście komend!`, `Alias: "${al}"`, `Komendy zawierające taki alias: "${conflictingCommands.join(", ")}`])
 									.then(() => rej({
 										type: M2D_EErrorTypes.Commands,
 										subtype: M2D_ECommandsErrorSubtypes.DuplicateAliases,
@@ -345,12 +349,12 @@ const M2D_CommandUtils = {
 					.then(() => M2D_LogUtils.logMessage(`success`, `IID: "${invokeId}" - Pomyślnie wywołano komendę!`)
 						.then(() => res())	
 					)
-					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`warn`, `IID: "${invokeId}" - Wystąpił błąd przy wywoływaniu komendy.`, `IID: "${invokeId}" - Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `IID: "${invokeId}" - Dane o błędzie: "${JSON.stringify(err.data)}"`, `IID: ${invokeId} - Uruchamianie obsługi błędów komendy...`)
+					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`warn`, [`IID: "${invokeId}" - Wystąpił błąd przy wywoływaniu komendy.`, `IID: "${invokeId}" - Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `IID: "${invokeId}" - Dane o błędzie: "${JSON.stringify(err.data)}"`, `IID: ${invokeId} - Uruchamianie obsługi błędów komendy...`])
 						.then(() => command.errorHandler(err, command, parameters, suppParameters)
 							.then(() => M2D_LogUtils.logMessage(`success`, `IID: "${invokeId}" - Obsługa błędów nie zgłosiła żadnych zastrzeżeń. Uznano wykonanie komendy za pomyślne.`)
 								.then(() => res())
 							)
-							.catch((errerr) => M2D_LogUtils.logMultipleMessages(`error`, `IID: "${invokeId}" - Obsługa błędów zgłosiła następujący błąd:`, `IID: "${invokeId}" - Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(errerr)}"`, `IID: "${invokeId}" - Dane o błędzie: "${JSON.stringify(err.data)}"`, `IID: "${invokeId}" - Przekazywanie błędu dalej...`)
+							.catch((errerr) => M2D_LogUtils.logMultipleMessages(`error`, [`IID: "${invokeId}" - Obsługa błędów zgłosiła następujący błąd:`, `IID: "${invokeId}" - Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(errerr)}"`, `IID: "${invokeId}" - Dane o błędzie: "${JSON.stringify(err.data)}"`, `IID: "${invokeId}" - Przekazywanie błędu dalej...`])
 								.then(() => rej(errerr))
 							)
 						)
@@ -358,14 +362,20 @@ const M2D_CommandUtils = {
 			})	
 	}),
 	addCommands: (commands: M2D_ICommand[]) => new Promise<void>((res, rej) => {
-		const cmds: M2D_ICommand[] = [...M2D_COMMANDS, ...commands];
-		
-		M2D_CommandUtils.validateCommands(cmds)
+		M2D_LogUtils.logMessage(`info`, `Zainicjowano operację dodania nowych komend...`)
 			.then(() => {
-				M2D_COMMANDS.push(...commands);
-				res();
-			})
-			.catch((err) => rej(err));
+				const cmds: M2D_ICommand[] = [...M2D_COMMANDS, ...commands];
+				
+				M2D_CommandUtils.validateCommands(cmds)
+					.then(() => {
+						M2D_COMMANDS.push(...commands);
+						M2D_LogUtils.logMessage(`success`, `Operacja dodania nowych komend zakończyła się sukcesem!`)
+							.then(() => res());
+					})
+					.catch((err) => M2D_LogUtils.logMessage(`error`, `Wystąpił błąd podczas dodawania nowych komend. Nowe komendy nie zostały dodane.`)
+						.then(() => rej(err))
+					);
+			});	
 	}),
 	initCommandCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie komend...`)
@@ -400,6 +410,7 @@ const M2D_CommandUtils = {
 	};
 	export {
 		M2D_ECommandsErrorSubtypes,
-		M2D_CommandUtils
+		M2D_CommandUtils,
+		M2D_CATEGORIES
 	};
 //#endregion

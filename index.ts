@@ -9,7 +9,7 @@ M2D_ClientUtils.initEventHandlers();
 M2D_GeneralUtils.getEnvVar("DISCORD_ACCESS_TOKEN")
 	.then((val) => M2D_ClientUtils.loginClient(val))
 	.catch((err: M2D_Error) => {
-		M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas uwierzytelniania z serwerami Discorda!`, `Oznaczenie błędu: ${M2D_GeneralUtils.getErrorString(err)}`, `Informacje o błędzie: "${JSON.stringify(err.data)}"`, `Muzyk2D przejdzie do samowyłączenia...`)
+		M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas uwierzytelniania z serwerami Discorda!`, `Oznaczenie błędu: ${M2D_GeneralUtils.getErrorString(err)}`, `Informacje o błędzie: "${JSON.stringify(err.data)}"`, `Muzyk2D przejdzie do samowyłączenia...`])
 			.then(() => M2D_GeneralUtils.exitHandler(1));
 	});
 

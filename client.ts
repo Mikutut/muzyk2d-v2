@@ -21,6 +21,7 @@
 			MissingChannel = "MISSING_CHANNEL",
 			MissingGuildChannel = "MISSING_GUILD_CHANNEL",
 			MissingUser = "MISSING_USER",
+			MissingGuildMember = "MISSING_GUILD_MEMBER",
 			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS"
 		};
 		const enum M2D_EClientMessageInvalidErrorTypes {
@@ -59,6 +60,12 @@
 				userId: string;
 			}
 		};
+		interface M2D_IClientMissingGuildMemberError extends M2D_IError {
+			data: {
+				guildId: string;
+				userId: string;
+			}
+		};
 		interface M2D_IClientInsufficientPermissionsError extends M2D_IError {
 			data: {
 				guild: Guild;
@@ -73,6 +80,7 @@
 			M2D_IClientMissingChannelError |
 			M2D_IClientMissingGuildChannelError |
 			M2D_IClientMissingUserError |
+			M2D_IClientMissingGuildMemberError |
 			M2D_IClientInsufficientPermissionsError;
 	//#endregion
 //#endregion
@@ -112,7 +120,7 @@ const M2D_ClientUtils = {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
 				})
 				.catch((err: M2D_Error) => {
-					M2D_LogUtils.logMultipleMessages("error", `Wystąpił błąd podczas wstępnej inicjalizacji!`, `Oznaczenie błędu: ${M2D_GeneralUtils.getErrorString(err)}`, `Informacje o błędzie: "${JSON.stringify(err.data)}"`, `Muzyk2D przejdzie do samowyłączenia.`)
+					M2D_LogUtils.logMultipleMessages("error", [`Wystąpił błąd podczas wstępnej inicjalizacji!`, `Oznaczenie błędu: ${M2D_GeneralUtils.getErrorString(err)}`, `Informacje o błędzie: "${JSON.stringify(err.data)}"`, `Muzyk2D przejdzie do samowyłączenia.`])
 						.then(() => M2D_GeneralUtils.exitHandler(1));
 				})
 		});
@@ -140,10 +148,10 @@ const M2D_ClientUtils = {
 								)
 								.catch(() => {return;})
 						)
-						.catch((error: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas interpretowania wiadomości!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(error)}"`, `Dane o błędzie: "${JSON.stringify(error.data)}"`));
+						.catch((error: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas interpretowania wiadomości!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(error)}"`, `Dane o błędzie: "${JSON.stringify(error.data)}"`]));
 				} else throw new Error("Guild was null");
 			} catch(err) {
-				M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił nieznany błąd podczas interpretowania wiadomości!`, `Tekst błędu: "${(err as Error).message}"`);
+				M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił nieznany błąd podczas interpretowania wiadomości!`, `Tekst błędu: "${(err as Error).message}"`]);
 			}
 		});
 	},
@@ -210,7 +218,7 @@ const M2D_ClientUtils = {
 													.then(() => res())
 													.catch((err) => rej(err));
 											})
-											.catch((err: M2D_ICommandsInsufficientParametersError) => M2D_LogUtils.logMultipleMessages(`error`, `Podano nieprawidłową ilość parametrów do komendy "${(command as M2D_ICommand).name}"`, `Minimalna ilość parametrów: ${err.data.requiredParametersCount}`, `Maksymalna ilość parametrów: ${err.data.allParametersCount}`, `Otrzymana ilość parametrów: ${err.data.receivedParametersCount}`)
+											.catch((err: M2D_ICommandsInsufficientParametersError) => M2D_LogUtils.logMultipleMessages(`error`, [`Podano nieprawidłową ilość parametrów do komendy "${(command as M2D_ICommand).name}"`, `Minimalna ilość parametrów: ${err.data.requiredParametersCount}`, `Maksymalna ilość parametrów: ${err.data.allParametersCount}`, `Otrzymana ilość parametrów: ${err.data.receivedParametersCount}`])
 												.then(() => rej(err as M2D_ICommandsInsufficientParametersError))
 											)
 									} else M2D_LogUtils.logMessage(`error`, `Komenda "${(command as M2D_ICommand).name}" jest komendą deweloperską, a tryb deweloperski został wyłączony!`)
@@ -258,6 +266,13 @@ const M2D_ClientUtils = {
 		} else return false;
 	},
 	doesUserExist: (userId: string) => M2D_Client.users.cache.get(userId) !== undefined,
+	doesUserOnGuildExist: (guildId: string, userId: string) => {
+		if(M2D_ClientUtils.doesGuildExist(guildId)) {
+			const guild = M2D_Client.guilds.cache.get(guildId) as Guild;
+
+			if(guild.members.cache.find((v) => v.user.id === userId)) return true;
+		} else return false;
+	},
 	getGuildFromId: (guildId: string) => new Promise<Guild>((res, rej) => {
 		if(M2D_ClientUtils.doesGuildExist(guildId)) {
 			res(M2D_Client.guilds.cache.get(guildId) as Guild);
@@ -283,6 +298,33 @@ const M2D_ClientUtils = {
 				channelId
 			}
 		} as M2D_IClientMissingGuildChannelError);
+	}),
+	getUserFromId: (userId: string) => new Promise<User>((res, rej) => {
+		if(M2D_ClientUtils.doesUserExist(userId)) {
+			res(M2D_Client.users.cache.get(userId) as User);
+		} else rej({
+			type: M2D_EErrorTypes.Client,
+			subtype: M2D_EClientErrorSubtypes.MissingUser,
+			data: {
+				userId
+			}
+		} as M2D_IClientMissingUserError);
+	}),
+	getGuildMemberFromId: (guildId: string, userId: string) => new Promise<GuildMember>((res, rej) => {
+		M2D_ClientUtils.getGuildFromId(guildId)
+			.then((guild) => {
+				if(M2D_ClientUtils.doesUserOnGuildExist(guildId, userId)) {
+					res(guild.members.cache.find((v) => v.user.id === userId) as GuildMember);
+				} else rej({
+					type: M2D_EErrorTypes.Client,
+					subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
+					data: {
+						guildId,
+						userId
+					}
+				} as M2D_IClientMissingGuildMemberError);
+			})
+			.catch((err) => rej(err));	
 	})
 };
 
@@ -294,6 +336,7 @@ const M2D_ClientUtils = {
 		M2D_IClientMissingChannelError,
 		M2D_IClientMissingGuildChannelError,
 		M2D_IClientMissingUserError,
+		M2D_IClientMissingGuildMemberError,
 		M2D_IClientInsufficientPermissionsError,
 		M2D_ClientError
 	};

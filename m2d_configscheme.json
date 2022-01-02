@@ -54,5 +54,12 @@
 		"description": "Kanał, na którym Muzyk2D wyśle wiadomość podczas uruchamiania",
 		"overridable": true,
 		"overrideOnly": true
+	},
+	{
+		"name": "voiceConnectionDisconnectedTimeout",
+		"label": "połączenieGłosoweRozłączonoTimeout",
+		"description": "Ilość czasu (w sekundach), po którym połączenie głosowe automatycznie przejdzie ze stanu \"DISCONNECTED\" do stanu \"DESTROYED\"",
+		"overridable": false,
+		"overrideOnly": false
 	}
 ]

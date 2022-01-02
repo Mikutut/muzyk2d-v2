@@ -6,7 +6,7 @@
 	import { M2D_LogUtils, M2D_ELogErrorSubtypes, M2D_LogError } from "./log";
 	import { M2D_EClientErrorSubtypes, M2D_ClientError } from "./client";
 	import { M2D_ECommandsErrorSubtypes, M2D_CommandsError } from "./commands";
-	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError } from "./voice";
+	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError, M2D_VoiceUtils } from "./voice";
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError } from "./playlist";
 	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "./playback";
 //#endregion
@@ -128,12 +128,14 @@ const M2D_GeneralUtils = {
 	},
 	exitHandler: (exitCode: number) => {
 		M2D_LogUtils.logMessage("info", "Trwa wyłączanie Muzyka2D...")
-			.then(() => M2D_LogUtils.logMessage("info", `Zapisywanie konfiguracji do pliku...`)
-				.then(() => M2D_ConfigUtils.saveConfigToFile())
-				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, `Wystąpił błąd podczas zapisywania konfiguracji do pliku!`, `Typ błędu: "${err.type}"`, `Podtyp błędu: "${err.subtype}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`))
+			.then(() => M2D_ConfigUtils.configExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
-			.then(() => M2D_LogUtils.leaveTrailingNewline()
-				.catch(() => {return;})
+			.then(() => M2D_LogUtils.logExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
+			.then(() => M2D_VoiceUtils.voiceExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => process.exit(exitCode));
 	},
