@@ -7,8 +7,9 @@
 M2D_ClientUtils.initEventHandlers();
 
 M2D_GeneralUtils.isDevModeEnabled()
-	.then(() => M2D_GeneralUtils.getEnvVar("DEV_DISCORD_ACCESS_TOKEN"))
-	.then((val) => val)
+	.then(() => M2D_GeneralUtils.getEnvVar("DEV_DISCORD_ACCESS_TOKEN")
+		.then((val) => val)
+	)
 	.catch(() => M2D_GeneralUtils.getEnvVar("DISCORD_ACCESS_TOKEN")
 		.then((val) => val)
 	)
