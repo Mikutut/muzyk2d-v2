@@ -33,14 +33,14 @@
   - [x] Implement collecting metadata about videos from YouTube
   - [x] Add appropriate interfaces for needed data only
   - [x] Implement caching metadata to limit API requests
-- [ ] Implement audio playback:
+- [x] Implement audio playback:
   - [x] Implement downloading/playing video stream off of YouTube
   - [x] Implement playlist functionality:
     - [x] Add playlist per every guild
     - [x] Implement utility functions (adding/deleting playlist entries, flushing playlist etc.)
   - [x] Implement bot state awareness (active/idle)
   - [x] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
-  - [ ] Make "play" command automatically join bot to the voice channel
+  - [x] Make "play" command automatically join bot to the voice channel
 - [ ] Implement "help" command
 - [ ] Implement Rich Presence
 - [ ] Implement status change
