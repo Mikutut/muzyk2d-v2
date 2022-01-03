@@ -7,6 +7,7 @@
 	import { M2D_VoiceUtils } from "./voice";
 	import { M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_PlaylistUtils } from "./playlist";
+	import { M2D_PlaybackUtils } from "./playback";
 //#endregion
 
 //#region Types
@@ -128,6 +129,7 @@ const M2D_ClientUtils = {
 				.then(() => M2D_ConfigUtils.initConfigCapabilities())
 				.then(() => M2D_VoiceUtils.initVoiceCapabilities())
 				.then(() => M2D_PlaylistUtils.initPlaylistCapabilities())
+				.then(() => M2D_PlaybackUtils.initPlaybackCapabilities())
 				.then(() => M2D_YTAPIUtils.initYTAPICapabilities())
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);

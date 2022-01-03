@@ -8,7 +8,7 @@
 	import { M2D_ECommandsErrorSubtypes, M2D_CommandsError } from "./commands";
 	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError, M2D_VoiceUtils } from "./voice";
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
-	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError } from "./playback";
+	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError, M2D_PlaybackUtils } from "./playback";
 	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
 //#endregion
 
@@ -138,6 +138,9 @@ const M2D_GeneralUtils = {
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_PlaylistUtils.playlistExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
+			.then(() => M2D_PlaybackUtils.playbackExitHandler()
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_VoiceUtils.voiceExitHandler()

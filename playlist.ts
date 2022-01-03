@@ -6,6 +6,7 @@
 	import { M2D_EYTAPIErrorSubtypes, M2D_IYTAPIVideoMetadata, M2D_IYTAPIWrongUrlError, M2D_YTAPIUtils } from "./youtubeapi";
 	import { GuildMember } from "discord.js";
 	import { M2D_ClientUtils } from "./client";
+	import { M2D_IPlayback, M2D_PlaybackUtils } from "./playback";
 //#endregion
 
 //#region Types
@@ -449,9 +450,14 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 				M2D_PlaylistUtils.getPlaylist(guild.id)
 					.then((playlist: M2D_IPlaylistEntry[]) => {
 						let outputString = `\n`;
+						let playlistEntry: M2D_IPlayback | undefined;
+
+						M2D_PlaybackUtils.getPlayback(guild.id)
+							.then((pe: M2D_IPlayback) => { playlistEntry = pe; })
+							.catch(() => {return;});
 
 						for(const v of playlist) {
-							outputString = outputString.concat(`---\n**${v.id}**\nTytuł: **${v.title}**\nAutor: **${v.author}**\nDodane przez: **${v.requestedBy}**\n`);
+							outputString = outputString.concat(`---\n**${v.id}**\nTytuł: **${v.title}**\nAutor: **${v.author}**\nDodane przez: **${v.requestedBy}**\n${(playlistEntry && playlistEntry.currentPlaylistEntryId === v.id) ? "*OBECNIE ODTWARZANY*\n" : ""}---\n`);
 						}
 
 						return outputString;

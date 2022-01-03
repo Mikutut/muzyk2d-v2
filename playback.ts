@@ -2,14 +2,14 @@
 	import { nanoid } from "nanoid";
 	import { Readable } from "stream"
 	import { AudioPlayer, AudioPlayerStatus, createAudioPlayer, createAudioResource } from "@discordjs/voice";
-	import { M2D_LogUtils } from "log";
+	import { M2D_LogUtils } from "./log";
 	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
 	import { M2D_GeneralUtils, M2D_Error, M2D_IError, M2D_EErrorTypes } from "./utils";
 	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceDestroyedError, M2D_VoiceUtils } from "./voice";
 	import { M2D_ClientUtils } from "./client";
 	import { M2D_ConfigUtils } from "./config";
-	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError } from "./commands";
-import { M2D_YTAPIUtils } from "youtubeapi";
+	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
+	import { M2D_YTAPIUtils } from "./youtubeapi";
 //#endregion
 
 //#region Types
@@ -141,6 +141,17 @@ const M2D_PlaybackTimer = setInterval(() => {
 
 const M2D_PlaybackUtils = {
 	doesPlaybackExist: (guildId: string) => M2D_PLAYBACKS.find((v) => v.guildId === guildId) !== undefined,
+	getPlayback: (guildId: string) => new Promise<M2D_IPlayback>((res, rej) => {
+		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
+			res(M2D_PLAYBACKS.find((v) => v.guildId === guildId) as M2D_IPlayback);
+		} else rej({
+			type: M2D_EErrorTypes.Playback,
+			subtype: M2D_EPlaybackErrorSubtypes.DoesntExist,
+			data: {
+				guildId
+			}
+		} as M2D_IPlaybackDoesntExistError);
+	}),
 	createPlayback: (guildId: string) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Zainicjowano stworzenie odtworzenia na serwerze o ID "${guildId}"...`)
 			.then(() => { 
@@ -351,6 +362,7 @@ const M2D_PlaybackUtils = {
 			.then((val: string) => {
 				M2D_InactiveTimeout = parseInt(val, 10);
 			})
+			.then(() => M2D_CommandUtils.addCommands(M2D_PLAYBACK_COMMANDS))
 			.then(() => M2D_LogUtils.logMessage(`success`, `Zainicjalizowano możliwości odtwarzania!`))
 			.then(() => res())
 			.catch((err) => rej(err));
@@ -371,7 +383,131 @@ const M2D_PlaybackUtils = {
 };
 
 const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
+	{
+		name: "odtwórz",
+		aliases: ["p"],
+		category: M2D_CATEGORIES.playback,
+		description: "Odtwarza obecną pozycję na playliście",
+		parameters: [],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
 
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "zapauzuj",
+		aliases: ["z"],
+		category: M2D_CATEGORIES.playback,
+		description: "Pauzuje odtworzenie",
+		parameters: [],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "odpauzuj",
+		aliases: ["oz"],
+		category: M2D_CATEGORIES.playback,
+		description: "Odpauzowywuje odtworzenie",
+		parameters: [],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "stop",
+		aliases: ["s"],
+		category: M2D_CATEGORIES.playback,
+		description: "Zatrzymuje odtwarzanie, cofając je do początku obecnego utworu",
+		parameters: [],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "pomiń",
+		aliases: ["pp"],
+		category: M2D_CATEGORIES.playback,
+		description: "Pomija obecną pozycję na playliście i rozpoczyna odtwarzanie następnej",
+		parameters: [],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	}
 ];
 
 //#region Exports
