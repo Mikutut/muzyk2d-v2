@@ -93,7 +93,8 @@
 			M2D_IClientMissingGuildChannelError |
 			M2D_IClientMissingUserError |
 			M2D_IClientMissingGuildMemberError |
-			M2D_IClientInsufficientPermissionsError;
+			M2D_IClientInsufficientPermissionsError |
+			M2D_IClientWrongChannelTypeError;
 	//#endregion
 //#endregion
 
@@ -492,6 +493,7 @@ const M2D_ClientUtils = {
 		M2D_IClientMissingUserError,
 		M2D_IClientMissingGuildMemberError,
 		M2D_IClientInsufficientPermissionsError,
+		M2D_IClientWrongChannelTypeError,
 		M2D_ClientError
 	};
 	export {

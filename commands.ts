@@ -144,6 +144,10 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	playlist: {
 		name: "playlist",
 		label: "playlista"
+	},
+	playback: {
+		name: "playback",
+		label: "odtwarzanie"
 	}
 };
 
