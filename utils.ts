@@ -53,7 +53,8 @@
 
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
-			NoEnvVariable = "NO_ENV_VARIABLE"
+			NoEnvVariable = "NO_ENV_VARIABLE",
+			DevModeUserNotAllowed = "DEV_MODE_USER_NOT_ALLOWED"
 		};
 		interface M2D_IUnknownError extends M2D_IError {
 			data: {
@@ -65,8 +66,14 @@
 				envVariable: string;
 			};
 		};
+		interface M2D_IGeneralDevModeUserNotAllowedError extends M2D_IError {
+			data: {
+				userId: string;
+			}
+		};
 
-		type M2D_GeneralError = M2D_IGeneralNoEnvVariableError;
+		type M2D_GeneralError = M2D_IGeneralNoEnvVariableError |
+			M2D_IGeneralDevModeUserNotAllowedError;
 	//#endregion
 
 	type M2D_EmbedType = "info" | "success" | "error";
@@ -81,6 +88,8 @@
 //#endregion
 
 dotenvConfig();
+
+const M2D_DEV_ALLOWED_USERS: string[] = [];
 
 const M2D_GeneralUtils = {
 	getMuzyk2DVersion: () => M2DVersion,
@@ -156,7 +165,36 @@ const M2D_GeneralUtils = {
 			return `${error.type}_${error.subtype}`;
 		} else return `UNKNOWN`;
 	},
-	delay: (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms))
+	delay: (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms)),
+	loadDevModeAllowedUsers: () => new Promise<void>((res, rej) => {
+		M2D_GeneralUtils.isDevModeEnabled()
+			.then((isEnabled) => {
+				if(isEnabled) {
+					return M2D_GeneralUtils.getEnvVar("DEV_ALLOWED_USERS")
+						.then((val: string) => {
+							if(val.includes(" ")) {
+								const allowedUsers = val.split(" ");
+
+								M2D_DEV_ALLOWED_USERS.push(...allowedUsers);
+							} else {
+								M2D_DEV_ALLOWED_USERS.push(val);
+							}
+							res();
+						});
+				} else res();
+			})
+			.catch((err) => rej(err));
+	}),
+	isUserDevModeAllowed: (userId: string) => M2D_DEV_ALLOWED_USERS.find((v) => v === userId) !== undefined,
+	initGeneralCapabilities: () => new Promise<void>((res, rej) => {
+		console.log(`Inicjalizowanie ogólnych możliwości...`);
+		M2D_GeneralUtils.loadDevModeAllowedUsers()
+			.then(() => {
+				console.log(`Zainicjalizowano ogólne możliwości!`);
+				res();
+			})
+			.catch((err) => rej(err));
+	})
 };
 
 
@@ -164,6 +202,7 @@ const M2D_GeneralUtils = {
 export type {
 	M2D_IError,
 	M2D_IGeneralNoEnvVariableError,
+	M2D_IGeneralDevModeUserNotAllowedError,
 	M2D_IEmbedOptions,
 	M2D_EmbedType,
 	M2D_IUnknownError,

@@ -1,8 +1,9 @@
 //#region Imports
-	import { Message, Channel, Guild, User } from "discord.js";
+	import { Message, Channel, Guild, User, PartialTextBasedChannel } from "discord.js";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes } from "./utils";
 	import { nanoid } from "nanoid";
+	import { M2D_ClientUtils } from "./client";
 //#endregion
 
 //#region Types
@@ -148,8 +149,56 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	playback: {
 		name: "playback",
 		label: "odtwarzanie"
+	},
+	dev: {
+		name: "developer",
+		label: "deweloperskie"
+	},
+	chatNonInvokable: {
+		name: "chatNonInvokable",
+		label: "nieWywoływalneNaChacie"
 	}
 };
+
+const M2D_DEV_COMMANDS: M2D_ICommand[] = [
+	{
+		name: "isDevMode",
+		aliases: ["devmode"],
+		category: M2D_CATEGORIES.dev,
+		description: "Wyświetla status trybu deweloperskiego",
+		parameters: [],
+		active: true,
+		developerOnly: true,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				M2D_GeneralUtils.isDevModeEnabled()
+					.then((val) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+						embeds: [
+							M2D_GeneralUtils.embedBuilder({
+								type: "info",
+								description: (val) ? "tak" : "nie"
+							})
+						]
+					}))
+					.then(() => res())
+					.catch((err) => rej(err));
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	}
+];
+const M2D_CHAT_NON_INVOKABLES: M2D_ICommand[] = [];
 
 const M2D_COMMANDS: M2D_ICommand[] = [
 	{
@@ -388,6 +437,8 @@ const M2D_CommandUtils = {
 	initCommandCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie komend...`)
 			.then(() => M2D_CommandUtils.validateCommands())
+			.then(() => M2D_CommandUtils.addCommands(M2D_DEV_COMMANDS))
+			.then(() => M2D_CommandUtils.addCommands(M2D_CHAT_NON_INVOKABLES))
 			.then(() => {
 				M2D_LogUtils.logMessage(`success`, `Zainicjalizowano komendy!`)
 					.then(() => res());

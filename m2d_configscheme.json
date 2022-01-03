@@ -42,16 +42,9 @@
 		"overrideOnly": false
 	},
 	{
-		"name": "sendMessageOnStartup",
-		"label": "wyślijWiadomośćPodczasUruchamiania",
-		"description": "Czy Muzyk2D ma wysyłać wiadomość podczas uruchomienia?",
-		"overridable": false,
-		"overrideOnly": false
-	},
-	{
-		"name": "sendMessageOnStartupChannel",
-		"label": "wyślijWiadomośćPodczasUruchamianiaKanał",
-		"description": "Kanał, na którym Muzyk2D wyśle wiadomość podczas uruchamiania",
+		"name": "sendMessageDefaultChannel",
+		"label": "wyślijWiadomośćDomyślnyKanał",
+		"description": "Domyślny kanał, na który Muzyk2D będzie wysyłał wiadomości (nie odpowiedzi)",
 		"overridable": true,
 		"overrideOnly": true
 	},

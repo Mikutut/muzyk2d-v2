@@ -448,16 +448,49 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_PlaylistUtils.getPlaylist(guild.id)
-					.then((playlist: M2D_IPlaylistEntry[]) => {
+					.then((pl: M2D_IPlaylistEntry[]) => {
+						const ids: string[] = [];
+						const titles: string[] = [];
+						const authors: string[] = [];
+						const requestedBys: string[] = [];
+
+						for(const v of pl) {
+							ids.push(v.id);
+							titles.push(v.title);
+							authors.push(v.author);
+							requestedBys.push(v.requestedBy);
+						}
+
+						return {
+							ids,
+							titles,
+							authors,
+							requestedBys
+						};
+					})
+					.then((data: { ids: string[]; titles: string[]; authors: string[]; requestedBys: string[], playback?: M2D_IPlayback }) => M2D_PlaybackUtils.getPlayback(guild.id)
+						.then((pe: M2D_IPlayback) => {
+							const repackedData = { ...data };
+
+							repackedData.playback = pe;
+							return repackedData;
+						})
+						.catch((err) => M2D_LogUtils.logMultipleMessages(`warn`, [ `GID: "${guild.id}" - nie udało się uzyskać odtworzenia!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ])
+							.then(() => data)
+						)
+					)
+					.then((data: { ids: string[]; titles: string[]; authors: string[]; requestedBys: string[], playback?: M2D_IPlayback }) => {
 						let outputString = `\n`;
-						let playlistEntry: M2D_IPlayback | undefined;
+						let isBeingPlayed: boolean;
+						const playlistLength = data.ids.length;
 
-						M2D_PlaybackUtils.getPlayback(guild.id)
-							.then((pe: M2D_IPlayback) => { playlistEntry = pe; })
-							.catch(() => {return;});
-
-						for(const v of playlist) {
-							outputString = outputString.concat(`---\n**${v.id}**\nTytuł: **${v.title}**\nAutor: **${v.author}**\nDodane przez: **${v.requestedBy}**\n${(playlistEntry && playlistEntry.currentPlaylistEntryId === v.id) ? "*OBECNIE ODTWARZANY*\n" : ""}---\n`);
+						for(let i = 0; i < playlistLength; i++) {
+							if(data.playback !== undefined) {
+								if(data.playback.currentPlaylistEntryId === data.ids[i]) {
+									isBeingPlayed = true;
+								} else isBeingPlayed = false;
+							} else isBeingPlayed = false;
+							outputString = outputString.concat(`\n**${data.ids[i]}**\nTytuł: **${data.titles[i]}**\nAutor: **${data.authors[i]}**\nDodane przez: **${data.requestedBys[i]}**\n${(isBeingPlayed) ? "*OBECNIE ODTWARZANY*\n" : ""}\n\n`);
 						}
 
 						return outputString;

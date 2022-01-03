@@ -24,11 +24,7 @@
 		"value": "7200"
 	},
 	{
-		"name": "sendMessageOnStartup",
-		"value": "false"
-	},
-	{
-		"name": "sendMessageOnStartupChannel",
+		"name": "sendMessageDefaultChannel",
 		"value": ""
 	},
 	{
@@ -37,7 +33,7 @@
 	},
 	{
 		"name": "autoDeleteMessageReplies",
-		"value": "false"
+		"value": "true"
 	},
 	{
 		"name": "autoDeleteMessageRepliesTime",

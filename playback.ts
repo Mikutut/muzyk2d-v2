@@ -34,6 +34,7 @@
 		currentPlaylistEntryId: string;
 		idleStateElapsedTime: number;
 		audioStream: Readable | null;
+		isCurrentlyDownloadingStream: boolean;
 	}
 	//#region Error types
 		const enum M2D_EPlaybackErrorSubtypes {
@@ -42,7 +43,8 @@
 			CouldntPause = "COULDNT_PAUSE",
 			CouldntUnpause = "COULDNT_UNPAUSE",
 			CouldntStop = "COULDNT_STOP",
-			PlayerSubscription = "PLAYER_SUBSCRIPTION"
+			PlayerSubscription = "PLAYER_SUBSCRIPTION",
+			AlreadyDownloadingStream = "ALREADY_DOWNLOADING_STREAM"
 		};
 		interface M2D_IPlaybackExistsError extends M2D_IError {
 			data: {
@@ -76,49 +78,38 @@
 			data: {
 				guildId: string;
 			}
-		}
+		};
+		interface M2D_IPlaybackAlreadyDownloadingStreamError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		};
 
 		type M2D_PlaybackError = M2D_IPlaybackExistsError |
 			M2D_IPlaybackDoesntExistError |
 			M2D_IPlaybackCouldntPauseError |
 			M2D_IPlaybackCouldntUnpauseError |
 			M2D_IPlaybackCouldntStopError |
-			M2D_IPlaybackPlayerSubscriptionError;
+			M2D_IPlaybackPlayerSubscriptionError |
+			M2D_IPlaybackAlreadyDownloadingStreamError;
 	//#endregion
 //#endregion
 
 let M2D_InactiveTimeout: number;
 const M2D_PLAYBACKS: M2D_IPlayback[] = [];
 
-const M2D_PlaybackTimer = setInterval(() => {
+const M2D_PlaybackTimer = setInterval(async () => {
 	for(const [i, v] of M2D_PLAYBACKS.entries()) {
 		if(v.state === M2D_PlaybackState.Stopped) {
 			if(v.mode === M2D_PlaybackMode.LoopOne) {
-				M2D_PlaylistUtils.getEntry(v.guildId, v.currentPlaylistEntryId)
-					.then((pe: M2D_IPlaylistEntry) => M2D_YTAPIUtils.getVideoStream(pe.url))
-					.then((stream: Readable) => M2D_PlaybackUtils.playAudioOnPlayback(v.guildId, stream))
+				await M2D_PlaylistUtils.getEntry(v.guildId, v.currentPlaylistEntryId)
+					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(v.guildId, pe.id))
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono utwór.`))
 					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
 			} else {
-				M2D_PlaylistUtils.getNextEntry(v.guildId, v.currentPlaylistEntryId)
-					.then((pe: M2D_IPlaylistEntry) => M2D_YTAPIUtils.getVideoStream(pe.url)
-						.then((stream: Readable) => M2D_PlaybackUtils.playAudioOnPlayback(v.guildId, stream))
-						.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
-					)
-					.catch((err: M2D_Error) => {
-						if(err.subtype === M2D_EPlaylistErrorSubtypes.EndOfPlaylistReached) {
-							return M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - osiągnięto koniec playlisty.`)
-						}
-					})
-					.then(() => {
-						if(v.mode === M2D_PlaybackMode.LoopPlaylist) {
-							return M2D_PlaylistUtils.getFirstEntry(v.guildId)
-								.then((pe: M2D_IPlaylistEntry) => M2D_YTAPIUtils.getVideoStream(pe.url))
-								.then((stream: Readable) => M2D_PlaybackUtils.playAudioOnPlayback(v.guildId, stream))
-								.then(() => M2D_LogUtils.logMessage(`success`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono playlistę.`))
-								.catch((err: M2D_PlaylistError) => M2D_LogUtils.logMessage(`error`, `GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się wczytać pierwszej pozycji playlisty!`));
-						}
-					});
+				await M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
+					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
+					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
 			}
 		}
 		
@@ -126,7 +117,7 @@ const M2D_PlaybackTimer = setInterval(() => {
 			if(v.idleStateElapsedTime < M2D_InactiveTimeout) {
 				M2D_PLAYBACKS[i].idleStateElapsedTime++;
 			} else {
-				M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - upłynął dozwolony czas nieaktywności. Niszczenie odtworzenia...`)
+				await M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - upłynął dozwolony czas nieaktywności. Niszczenie odtworzenia...`)
 					.then(() => M2D_PlaybackUtils.destroyPlayback(v.guildId))
 					.catch((err: M2D_PlaybackError) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas niszczenia odtworzenia!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 			}
@@ -134,7 +125,7 @@ const M2D_PlaybackTimer = setInterval(() => {
 			M2D_PLAYBACKS[i].idleStateElapsedTime = 0;
 		}
 
-		M2D_VoiceUtils.isVoiceConnectionDisconnected(v.guildId)
+		await M2D_VoiceUtils.isVoiceConnectionDisconnected(v.guildId)
 			.then((isDis: boolean) => {
 				if(isDis) {
 					return M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - brak kanału głosowego, do którego dołączono. Niszczenie...`)
@@ -192,7 +183,8 @@ const M2D_PlaybackUtils = {
 															audioPlayer: aP,
 															audioStream: null,
 															currentPlaylistEntryId: entry.id,
-															idleStateElapsedTime: 0
+															idleStateElapsedTime: 0,
+															isCurrentlyDownloadingStream: false
 														};
 														aP.on("stateChange", (oldState, newState) => {
 															const oldStatusString: string = (oldState.status === AudioPlayerStatus.Playing) ? "PLAYING" :
@@ -224,6 +216,17 @@ const M2D_PlaybackUtils = {
 														aP.on("error", (error: AudioPlayerError) => {
 															M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" | PlID: "${plId}" - wystąpił błąd podczas odtwarzania!`, `Oznaczenie błędu: "${error.name}"`, `Treść błędu: "${error.message}"` ])
 																.then(() => M2D_PlaybackUtils.destroyPlayback(guildId))
+																.then(() => M2D_ClientUtils.sendMessageInGuild(guildId, undefined, {
+																	embeds: [
+																		M2D_GeneralUtils.embedBuilder({
+																			type: "error",
+																			title: "Błąd odtwarzania!",
+																			description: "Wystąpił błąd **podczas odtwarzania pozycji**!\nNajprawdopodobniej jest to problem z **biblioteką \"ytdl-core-discord\"**, na którą niestety **nie mam żadnego wpływu**.\n\nUżyj komendy `odtwórz` (`p`), aby **jeszcze raz odtworzyć obecną pozycję**."
+																		})
+																	]
+																})
+																	.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" - nie udało się poinformować o błędzie odtwarzania!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]))
+																)
 																.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" | PlID: "${plId}" - nie udało się zniszczyć wadliwego odtworzenia!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 														})
 
@@ -356,9 +359,36 @@ const M2D_PlaybackUtils = {
 	}),
 	playPlaylistEntry: (guildId: string, entryId: string) => new Promise<void>((res, rej) => {
 		M2D_PlaybackUtils.getPlayback(guildId)
-			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, entryId))
-			.then((pe) => M2D_YTAPIUtils.getVideoStream(pe.url))
-			.then((stream) => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream))
+			.then((pB) => {
+				if(!pB.isCurrentlyDownloadingStream) {
+					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
+
+					M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = true;
+
+					if(M2D_PLAYBACKS[idx].audioStream !== null) {
+						(M2D_PLAYBACKS[idx].audioStream as Readable).destroy();
+						M2D_PLAYBACKS[idx].audioStream = null;
+					}
+
+					return pB;
+				} else return Promise.reject({
+					type: M2D_EErrorTypes.Playback,
+					subtype: M2D_EPlaybackErrorSubtypes.AlreadyDownloadingStream,
+					data: {
+						guildId
+					}
+				} as M2D_IPlaybackAlreadyDownloadingStreamError);
+			})
+			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, entryId)
+				.then((pe) => M2D_YTAPIUtils.getVideoStream(pe.url))
+				.then((stream) => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream))
+				.then(() => {
+					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
+
+					M2D_PLAYBACKS[idx].currentPlaylistEntryId = entryId;
+					M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = false;
+				})
+			)
 			.then(() => res())
 			.catch((err) => rej(err));
 	}),
@@ -370,7 +400,13 @@ const M2D_PlaybackUtils = {
 	}),
 	playNextPlaylistEntry: (guildId: string) => new Promise<void>((res, rej) => {
 		M2D_PlaybackUtils.getPlayback(guildId)
-			.then((pB: M2D_IPlayback) => M2D_PlaylistUtils.getNextEntry(guildId, pB.currentPlaylistEntryId))
+			.then((pB: M2D_IPlayback) => M2D_PlaylistUtils.getNextEntry(guildId, pB.currentPlaylistEntryId)
+				.catch((err: M2D_PlaylistError) => {
+					if(err.subtype === M2D_EPlaylistErrorSubtypes.EndOfPlaylistReached) {
+						return M2D_PlaylistUtils.getFirstEntry(guildId);
+					} else return Promise.reject(err);
+				})
+			)
 			.then((pe) => M2D_PlaybackUtils.playPlaylistEntry(guildId, pe.id))
 			.then(() => res())
 			.catch((err) => rej(err));
@@ -681,17 +717,18 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 						(pb.mode === M2D_PlaybackMode.Normal) ? M2D_PlaybackMode.LoopPlaylist :
 						(pb.mode === M2D_PlaybackMode.LoopPlaylist) ? M2D_PlaybackMode.LoopOne :
 						M2D_PlaybackMode.Normal
-					))
-					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
+					)
+						.then(() => pb)
+					)
 					.then(pb => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
 							M2D_GeneralUtils.embedBuilder({
 								type: "success",
 								title: "Przełączono tryb!",
 								description: `Zmieniono tryb odtwarzania na **${
-									(pb.mode === M2D_PlaybackMode.Normal) ? "Zapętlanie playlisty" :
-									(pb.mode === M2D_PlaybackMode.LoopPlaylist) ? "Zapętlanie pozycji" :
-									"Normalny"
+									(pb.mode === M2D_PlaybackMode.Normal) ? "Normalny" :
+									(pb.mode === M2D_PlaybackMode.LoopPlaylist) ? "Zapętlanie playlisty" :
+									"Zapętlanie pozycji"
 								}**`
 							})
 						]
@@ -721,6 +758,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		M2D_IPlaybackCouldntUnpauseError,
 		M2D_IPlaybackCouldntStopError,
 		M2D_IPlaybackPlayerSubscriptionError,
+		M2D_IPlaybackAlreadyDownloadingStreamError,
 		M2D_PlaybackError,
 	};
 	export {

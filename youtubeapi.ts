@@ -152,7 +152,7 @@ const M2D_YTAPIUtils = {
 		if(M2D_YTAPIUtils.isUrlParsable(url)) {
 			M2D_LogUtils.logMessage(`info`, `Pobieranie strumienia audio wideo o URL "${url}" poprzez ytdl...`)
 				.then(() => ytdl(url, {
-					quality: "highestaudio"
+					quality: "lowestaudio"
 				}))
 				.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumien audio wideo o URL "${url}"!`)
 						.then(() => stream)
