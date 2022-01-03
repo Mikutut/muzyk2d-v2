@@ -6,3 +6,4 @@ node_modules/
 *.bak
 *.log
 m2d_config.json
+res/txt/dev-invite-link.txt

@@ -202,14 +202,16 @@ const M2D_ClientUtils = {
 		if(messageContent.startsWith(prefix)) {
 			if(messageContent.length >= `${prefix} `.length) {
 				const fullCommand = messageContent.replace(`${prefix} `, "");
-				const keyword = fullCommand.split(" ")[0];
-				const params = fullCommand.split(" ");
+				const keyword = ((fullCommand.match(/(?:[^\s"]+|"[^"]*")+/g) as RegExpMatchArray) as string[])[0];
+				const params = (fullCommand.match(/(?:[^\s"]+|"[^"]*")+/g) as RegExpMatchArray) as string[];
 				params.shift();
+				
+				const outputParams = params.map((v) => v.replaceAll("\"", ""));
 
 				res({
 					fullCommand,
 					keyword,
-					parameters: params
+					parameters: outputParams
 				});
 			} else rej({
 				type: M2D_EErrorTypes.Client,
@@ -270,18 +272,27 @@ const M2D_ClientUtils = {
 												}
 											} as M2D_IGeneralDevModeUserNotAllowedError));
 									} else {
-										command = command as M2D_ICommand;
-										const { fullCommand, keyword, parameters } = parsedMessage;
+										if(!(command as M2D_ICommand).isUtilCommand || ((command as M2D_ICommand).isUtilCommand && !M2D_GeneralUtils.isUserDevModeAllowed(suppParameters.user.id))) {
+											command = command as M2D_ICommand;
+											const { fullCommand, keyword, parameters } = parsedMessage;
 
-										M2D_CommandUtils.buildCommandParameters(command, parameters)
-											.then((params: M2D_ICommandParameter[]) => {
-												M2D_CommandUtils.invokeCommand(command as M2D_ICommand, params, suppParameters)
-													.then(() => res())
-													.catch((err) => rej(err));
-											})
-											.catch((err: M2D_ICommandsInsufficientParametersError) => M2D_LogUtils.logMultipleMessages(`error`, [`Podano nieprawidłową ilość parametrów do komendy "${(command as M2D_ICommand).name}"`, `Minimalna ilość parametrów: ${err.data.requiredParametersCount}`, `Maksymalna ilość parametrów: ${err.data.allParametersCount}`, `Otrzymana ilość parametrów: ${err.data.receivedParametersCount}`])
-												.then(() => rej(err as M2D_ICommandsInsufficientParametersError))
-											);
+											M2D_CommandUtils.buildCommandParameters(command, parameters)
+												.then((params: M2D_ICommandParameter[]) => {
+													M2D_CommandUtils.invokeCommand(command as M2D_ICommand, params, suppParameters)
+														.then(() => res())
+														.catch((err) => rej(err));
+												})
+												.catch((err: M2D_ICommandsInsufficientParametersError) => M2D_LogUtils.logMultipleMessages(`error`, [`Podano nieprawidłową ilość parametrów do komendy "${(command as M2D_ICommand).name}"`, `Minimalna ilość parametrów: ${err.data.requiredParametersCount}`, `Maksymalna ilość parametrów: ${err.data.allParametersCount}`, `Otrzymana ilość parametrów: ${err.data.receivedParametersCount}`])
+													.then(() => rej(err as M2D_ICommandsInsufficientParametersError))
+												);
+										} else M2D_LogUtils.logMessage(`error`, `Komenda "${(command as M2D_ICommand).name}" jest komendą użytkową, a użytkownik nie należy do grupy dozwolonych`)
+											.then(() => rej({
+												type: M2D_EErrorTypes.General,
+												subtype: M2D_EGeneralErrorSubtypes.DevModeUserNotAllowed,
+												data: {
+													userId: suppParameters.user.id
+												}
+											} as M2D_IGeneralDevModeUserNotAllowedError));
 									}
 								});
 						} else M2D_LogUtils.logMessage(`error`, `Komendy "${command.name}" nie można wywoływać poprzez wiadomość!`)
@@ -666,6 +677,7 @@ const M2D_ClientUtils = {
 			})
 			.catch((err) => rej(err));
 	}),
+	getLastUsedChannels: () => [ ...M2D_CLIENT_LAST_USED_CHANNELS ],
 	initClientCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie możliwości klienta...`)
 			.then(() => M2D_LogUtils.logMessage(`success`, `Zainicjalizowano możliwości klienta!`)

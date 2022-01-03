@@ -491,6 +491,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -555,6 +556,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -594,6 +596,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -633,6 +636,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -672,6 +676,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -710,6 +715,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;

@@ -1,10 +1,10 @@
 //#region Imports
 	import { version as M2DVersion } from "./package.json";
 	import { config as dotenvConfig } from "dotenv";
-	import { EmbedField, MessageEmbed } from "discord.js";
+	import { EmbedField, MessageEmbed, MessageOptions, TextChannel, ThreadChannel } from "discord.js";
 	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, M2D_ConfigError } from "./config";
 	import { M2D_LogUtils, M2D_ELogErrorSubtypes, M2D_LogError } from "./log";
-	import { M2D_EClientErrorSubtypes, M2D_ClientError } from "./client";
+	import { M2D_EClientErrorSubtypes, M2D_ClientError, M2D_ClientUtils, M2D_IClientWrongChannelTypeError } from "./client";
 	import { M2D_ECommandsErrorSubtypes, M2D_CommandsError } from "./commands";
 	import { M2D_EVoiceErrorSubtypes, M2D_VoiceError, M2D_VoiceUtils } from "./voice";
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
@@ -158,6 +158,9 @@ const M2D_GeneralUtils = {
 			.then(() => M2D_YTAPIUtils.YTAPIExitHandler()
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
+			.then(() => M2D_GeneralUtils.generalExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
 			.then(() => process.exit(exitCode));
 	},
 	getErrorString: (error: M2D_Error): string => {
@@ -186,6 +189,85 @@ const M2D_GeneralUtils = {
 			.catch((err) => rej(err));
 	}),
 	isUserDevModeAllowed: (userId: string) => M2D_DEV_ALLOWED_USERS.find((v) => v === userId) !== undefined,
+	scheduleShutdown: (exitCode: number, s: number, reason?: string) => new Promise<void>((res, rej) => {
+		const promisesToHandle: Promise<void>[] = [];
+		for(const v of M2D_ClientUtils.getLastUsedChannels()) {
+			promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, {
+				embeds: [
+					M2D_GeneralUtils.embedBuilder({
+						type: "info",
+						title: "Zaplanowano wyłączenie",
+						description: `Za ${s} sekund nastąpi **planowe wyłączenie Muzyka2D**\n\n**Powód**: ${(reason) ? reason : "Nie podano"}`
+					})
+				]
+			}));
+		}
+		Promise.allSettled(promisesToHandle)
+			.then(() => M2D_GeneralUtils.delay(s * 1000))
+			.then(() => M2D_GeneralUtils.exitHandler(exitCode ?? 0));	
+	}),
+	sendDevMessage: (message: string, guildId?: string, channelId?: string) => new Promise<void>((res, rej) => {
+		const promisesToHandle: Promise<void>[] = [];
+		const devMsg: MessageOptions = {
+			embeds: [
+				M2D_GeneralUtils.embedBuilder({
+					type: "info",
+					title: "Wiadomość od dewelopera",
+					description: `Deweloper wysłał następującą wiadomość:\n\n**${message}**`
+				})
+			]
+		};
+		
+		new Promise<TextChannel | ThreadChannel>((res2, rej2) => {
+			if(guildId) {
+				M2D_ClientUtils.getLastUsedChannel(guildId)
+					.then((ch) => res2(ch))
+					.catch((err) => rej2(err));
+				if(channelId) {
+					M2D_ClientUtils.getGuildChannelFromId(guildId, channelId)
+						.then((ch) => {
+							if(ch.type === "GUILD_TEXT") {
+								res2(ch as TextChannel);
+							} else if(ch.type === "GUILD_PUBLIC_THREAD") {
+								res2(ch as ThreadChannel);
+							} else rej2({
+								type: M2D_EErrorTypes.Client,
+								subtype: M2D_EClientErrorSubtypes.WrongChannelType,
+								data: {
+									guildId,
+									channelId,
+									expectedTypes: [ "GUILD_TEXT", "GUILD_PUBLIC_THREAD" ],
+									receivedType: ch.type
+								}
+							} as M2D_IClientWrongChannelTypeError);
+						})
+						.catch((err) => rej2(err));
+				}
+			} else {
+				rej2();
+			}
+		})
+		.then((ch) => M2D_ClientUtils.sendMessageInGuild(guildId as string, ch.id, devMsg)
+			.then(() => M2D_LogUtils.logMessage(`success`, `Wiadomość deweloperska została wysłana na kanał "${ch.name}" (${ch.id}) na serwerze o ID "${guildId}"`))
+			.catch((err) => Promise.reject(err))
+		)
+		.then(() => res())
+		.catch((err: M2D_Error | undefined) => {
+			if(err) {
+				M2D_LogUtils.logMultipleMessages(`error`, [`Wysłanie wiadomości deweloperskiej na serwer o ID "${guildId}" nie powiodło się!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`])
+					.then(() => rej(err));
+			} else {
+				const promisesToHandle: Promise<any>[] = [];
+
+				for(const v of M2D_ClientUtils.getLastUsedChannels()) {
+					promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, devMsg));
+				}
+				return M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie wiadomości deweloperskiej na ostatnio używane kanały tekstowe na wszystkich serwerach...`, `Wynik tej operacji będzie nieznany`])
+					.then(() => Promise.allSettled(promisesToHandle))
+					.then(() => res());
+			}
+		})
+	}),
 	initGeneralCapabilities: () => new Promise<void>((res, rej) => {
 		console.log(`Inicjalizowanie ogólnych możliwości...`);
 		M2D_GeneralUtils.loadDevModeAllowedUsers()
@@ -194,6 +276,12 @@ const M2D_GeneralUtils = {
 				res();
 			})
 			.catch((err) => rej(err));
+	}),
+	generalExitHandler: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Wyłączanie ogólnych możliwości...`)
+			.then(() => M2D_LogUtils.logMessage(`success`, `Wyłączono ogólne możliwości!`))
+			.then(() => res())
+			.catch((err) => rej(err))
 	})
 };
 

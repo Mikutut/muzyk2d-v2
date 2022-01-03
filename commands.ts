@@ -37,6 +37,7 @@
 		description: string;
 		active: boolean;
 		developerOnly: boolean;
+		isUtilCommand: boolean;
 		chatInvokable: boolean;
 		handler: M2D_CommandHandler;
 		errorHandler: M2D_CommandErrorHandler;
@@ -157,9 +158,116 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	chatNonInvokable: {
 		name: "chatNonInvokable",
 		label: "nieWywoływalneNaChacie"
+	},
+	utility: {
+		name: "utility",
+		label: "użytkowe"
 	}
 };
 
+const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
+	{
+		name: "scheduleShutdown",
+		aliases: ["ss"],
+		category: M2D_CATEGORIES.utility,
+		description: "Sends warning message and shuts down bot after s amount of seconds",
+		parameters: [
+			{
+				name: "exitCode",
+				label: "kodWyjścia",
+				description: "Exit code",
+				required: true
+			},
+			{
+				name: "s",
+				label: "s",
+				description: "Amount of seconds, after which bot will be shut down",
+				required: true
+			},
+			{
+				name: "reason",
+				label: "powód",
+				description: "Shutdown reason",
+				required: false
+			}
+		],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		isUtilCommand: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			M2D_CommandUtils.getParameterValue(parameters, "s")
+				.then((val) => {
+					return M2D_CommandUtils.getParameterValue(parameters, "exitCode")
+						.then((val2) => M2D_CommandUtils.getParameterValue(parameters, "reason")
+							.then((val3) => val3)
+							.catch(() => undefined)
+							.then((val3) => M2D_GeneralUtils.scheduleShutdown(parseInt(val2, 10), parseInt(val, 10), val3))
+						)
+						.catch((err) => Promise.reject(err));
+				})
+				.then(() => res())
+				.catch((err) => rej(err));	
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "sendDevMessage",
+		aliases: ["sdm"],
+		category: M2D_CATEGORIES.utility,
+		description: "Sends developer message",
+		parameters: [
+			{
+				name: "message",
+				label: "wiadomość",
+				description: "Message",
+				required: true
+			},
+			{
+				name: "guildId",
+				label: "idSerwera",
+				description: "Guild ID",
+				required: false
+			},
+			{
+				name: "channelId",
+				label: "idKanału",
+				description: "Channel ID",
+				required: false
+			}
+		],
+		active: true,
+		developerOnly: false,
+		chatInvokable: true,
+		isUtilCommand: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			M2D_CommandUtils.getParameterValue(parameters, "message")
+				.then((val) => {
+					return M2D_CommandUtils.getParameterValue(parameters, "guildId")
+						.then((val2) => M2D_CommandUtils.getParameterValue(parameters, "channelId")
+							.then((val3) => M2D_GeneralUtils.sendDevMessage(val, val2, val3)
+								.then(() => res())
+								.catch((err) => rej(err))
+							)
+							.catch(() => M2D_GeneralUtils.sendDevMessage(val, val2)
+								.then(() => res())
+								.catch((err) => rej(err))
+							)
+						)
+						.catch(() => M2D_GeneralUtils.sendDevMessage(val)
+							.then(() => res())
+							.catch((err) => rej(err))
+						)
+				})
+				.catch((err) => rej(err));	
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	}
+];
 const M2D_DEV_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "isDevMode",
@@ -170,6 +278,7 @@ const M2D_DEV_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: true,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
@@ -217,6 +326,7 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
+		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
 				M2D_CommandUtils.getParameterValue(parameters, "category")
@@ -439,6 +549,7 @@ const M2D_CommandUtils = {
 			.then(() => M2D_CommandUtils.validateCommands())
 			.then(() => M2D_CommandUtils.addCommands(M2D_DEV_COMMANDS))
 			.then(() => M2D_CommandUtils.addCommands(M2D_CHAT_NON_INVOKABLES))
+			.then(() => M2D_CommandUtils.addCommands(M2D_UTIL_COMMANDS))
 			.then(() => {
 				M2D_LogUtils.logMessage(`success`, `Zainicjalizowano komendy!`)
 					.then(() => res());
