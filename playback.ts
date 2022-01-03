@@ -345,7 +345,9 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-			const audioResource = createAudioResource(stream);
+			const audioResource = createAudioResource(stream, {
+				silencePaddingFrames: 5	
+			});
 			M2D_PLAYBACKS[idx].audioPlayer.play(audioResource);
 			M2D_PLAYBACKS[idx].audioStream = stream;
 			res();
