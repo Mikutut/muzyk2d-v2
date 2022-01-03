@@ -238,6 +238,11 @@ const M2D_VoiceUtils = {
 
 																M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | VCID: "${vCID}" - nastąpiła zmiana stanu z "${oldStatusString}" do "${newStatusString}"`);
 															});
+															vC.on("error", (err: Error) => {
+																M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" | VCID: "${vCID}" - wystąpił błąd z połączeniem głosowym!`, `Treść błędu: "${err.message}"` ])
+																	.then(() => M2D_VoiceUtils.destroyVoiceConnection(guildId))
+																	.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" | VCID: "${vCID}" - wystąpił błąd podczas niszczenia wadliwego połączenia głosowego!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
+															});
 															M2D_VOICE_CONNECTIONS.push({
 																id: vCID,
 																guildId: guild.id,
