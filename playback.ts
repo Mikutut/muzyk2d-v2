@@ -9,7 +9,7 @@
 	import { M2D_ClientUtils, M2D_EClientErrorSubtypes, M2D_IClientMissingGuildMemberError, M2D_IClientWrongChannelTypeError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
-	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils } from "./youtubeapi";
+	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils, M2D_YT_VIDEO_STREAM_TIMEOUT } from "./youtubeapi";
 	import { M2D_MessagesUtils } from "./messages";
 //#endregion
 
@@ -107,7 +107,7 @@ const M2D_PlaybackTimer = setInterval(async () => {
 					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(v.guildId, pe.id))
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono utwór.`))
 					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
-			} else if(v.mode === M2D_PlaybackMode.LoopPlaylist) {
+			} else {
 				await M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
 					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
@@ -364,16 +364,23 @@ const M2D_PlaybackUtils = {
 		M2D_PlaybackUtils.getPlayback(guildId)
 			.then((pB) => {
 				if(!pB.isCurrentlyDownloadingStream) {
-					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
+					return M2D_MessagesUtils.getMessage("playbackDownloadingStream", [ M2D_YT_VIDEO_STREAM_TIMEOUT.toString() ])
+						.then((msg) => M2D_ClientUtils.sendMessageInGuild(guildId, undefined, {
+							embeds: [ msg ]
+						}, true))
+						.then(() => {	
+							const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
 
-					M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = true;
+							M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = true;
 
-					if(M2D_PLAYBACKS[idx].audioStream !== null) {
-						(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.destroy();
-						M2D_PLAYBACKS[idx].audioStream = null;
-					}
+							if(M2D_PLAYBACKS[idx].audioStream !== null) {
+								(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.destroy();
+								M2D_PLAYBACKS[idx].audioStream = null;
+							}
 
-					return pB;
+							return pB;
+						})
+						.catch((err) => Promise.reject(err));
 				} else return Promise.reject({
 					type: M2D_EErrorTypes.Playback,
 					subtype: M2D_EPlaybackErrorSubtypes.AlreadyDownloadingStream,
@@ -398,6 +405,16 @@ const M2D_PlaybackUtils = {
 					return pB;
 				})
 			)
+			.then((pB) => M2D_PlaylistUtils.getCurrentPlaylistEntry(pB.guildId)
+				.then((pE) => M2D_MessagesUtils.getMessage("playbackStarted", [ pE.title, pE.author, pE.id ], pE.thumbnailUrl))
+				.then((msg) => M2D_ClientUtils.sendMessageInGuild(pB.guildId, undefined, {
+					embeds: [
+						msg
+					]
+				})
+					.then(() => pB)
+				)
+			)
 			.then((pB: M2D_IPlayback) => M2D_LogUtils.logMessage(`success`, `GID: "${guildId}" | PbID: "${pB.id}" - pomyślnie odtworzono pozycję "${entryId}" z playlisty!`))
 			.then(() => res())
 			.catch((err) => rej(err));
@@ -413,11 +430,12 @@ const M2D_PlaybackUtils = {
 			.then((pB: M2D_IPlayback) => M2D_PlaylistUtils.getNextEntry(guildId, pB.currentPlaylistEntryId)
 				.catch((err: M2D_PlaylistError) => {
 					if(err.subtype === M2D_EPlaylistErrorSubtypes.EndOfPlaylistReached) {
-						return M2D_PlaylistUtils.getFirstEntry(guildId);
+						if(pB.mode === M2D_PlaybackMode.LoopPlaylist) return M2D_PlaylistUtils.getFirstEntry(guildId);
+						else res();
 					} else return Promise.reject(err);
 				})
 			)
-			.then((pe) => M2D_PlaybackUtils.playPlaylistEntry(guildId, pe.id))
+			.then((pe) => { if(pe !== undefined) M2D_PlaybackUtils.playPlaylistEntry(guildId, pe.id); })
 			.then(() => res())
 			.catch((err) => rej(err));
 	}),
@@ -531,25 +549,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id)
 						.catch(() => M2D_PlaybackUtils.createPlayback(guild.id))
 					)
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "info",
-								title: `Pobieranie strumienia...`,
-								description: `Muzyk2D rozpoczął proces pobierania strumienia z YouTube.\n\n**W przeciągu 30 sekund powinno rozpocząć się odtwarzanie utworu.**`
-							})
-						]
-					}))
 					.then(() => M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id))
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Odtworzono!`,
-								description: `**Rozpoczęto odtwarzanie** obecnej pozycji na playliście!`
-							})
-						]
-					}))
 					.then(() => res())
 					.catch(err => rej(err));
 			} else rej({
@@ -603,13 +603,10 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 					.then(() => M2D_PlaybackUtils.pausePlayback(guild.id))
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then(() => M2D_MessagesUtils.getMessage("playbackPaused"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Zapauzowano!`,
-								description: `Pomyślnie **zapauzowano odtwarzanie**!`
-							})
+							msg
 						]
 					}))
 					.then(() => res())
@@ -643,13 +640,10 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 					.then(() => M2D_PlaybackUtils.unpausePlayback(guild.id))
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then(() => M2D_MessagesUtils.getMessage("playbackUnpaused"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Odpauzowano!`,
-								description: `Pomyślnie **odpauzowano odtwarzanie**!`
-							})
+							msg
 						]
 					}))
 					.then(() => res())
@@ -683,13 +677,10 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 					.then(() => M2D_PlaybackUtils.stopPlayback(guild.id))
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then(() => M2D_MessagesUtils.getMessage("playbackStopped"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Zastopowano!`,
-								description: `Pomyślnie **zastopowano odtwarzanie**!`
-							})
+							msg
 						]
 					}))
 					.then(() => res())
@@ -722,13 +713,10 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
 					.then(() => M2D_PlaybackUtils.playNextPlaylistEntry(guild.id))			
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then(() => M2D_MessagesUtils.getMessage("playbackSongSkipped"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Przewinięto pozycję!`,
-								description: `Pomyślnie **przewinięto do następnej pozycji na playliście**!`
-							})
+							msg
 						]
 					}))
 					.then(() => res())
@@ -767,17 +755,10 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 					)
 						.then(() => pb)
 					)
-					.then(pb => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then(pb => M2D_MessagesUtils.getMessage("playbackSwitchedMode", [ (pb.mode === M2D_PlaybackMode.Normal) ? "Normalny" : (pb.mode === M2D_PlaybackMode.LoopPlaylist) ? "Zapętlanie playlisty" : "Zapętlanie pozycji" ]))
+					.then(msg => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: "Przełączono tryb!",
-								description: `Zmieniono tryb odtwarzania na **${
-									(pb.mode === M2D_PlaybackMode.Normal) ? "Normalny" :
-									(pb.mode === M2D_PlaybackMode.LoopPlaylist) ? "Zapętlanie playlisty" :
-									"Zapętlanie pozycji"
-								}**`
-							})
+							msg
 						]
 					}))
 					.then(() => res())

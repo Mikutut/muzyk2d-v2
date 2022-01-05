@@ -10,7 +10,7 @@
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
 	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError, M2D_PlaybackUtils } from "./playback";
 	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
-	import { M2D_EMessagesErrorSubtypes, M2D_MessagesError } from "./messages";
+	import { M2D_EMessagesErrorSubtypes, M2D_MessagesError, M2D_MessagesUtils } from "./messages";
 //#endregion
 
 //#region Types
@@ -176,21 +176,16 @@ const M2D_GeneralUtils = {
 	},
 	delay: (ms: number) => new Promise<void>((res, rej) => setTimeout(res, ms)),
 	loadDevModeAllowedUsers: () => new Promise<void>((res, rej) => {
-		M2D_GeneralUtils.isDevModeEnabled()
-			.then((isEnabled) => {
-				if(isEnabled) {
-					return M2D_GeneralUtils.getEnvVar("DEV_ALLOWED_USERS")
-						.then((val: string) => {
-							if(val.includes(" ")) {
-								const allowedUsers = val.split(" ");
+		M2D_GeneralUtils.getEnvVar("DEV_ALLOWED_USERS")
+			.then((val: string) => {
+				if(/\s/g.test(val)) {
+					const allowedUsers = val.split(" ");
 
-								M2D_DEV_ALLOWED_USERS.push(...allowedUsers);
-							} else {
-								M2D_DEV_ALLOWED_USERS.push(val);
-							}
-							res();
-						});
-				} else res();
+					M2D_DEV_ALLOWED_USERS.push(...allowedUsers);
+				} else {
+					M2D_DEV_ALLOWED_USERS.push(val);
+				}
+				res();
 			})
 			.catch((err) => rej(err));
 	}),
@@ -206,73 +201,78 @@ const M2D_GeneralUtils = {
 						description: `Za ${s} sekund nastąpi **planowe wyłączenie Muzyka2D**\n\n**Powód**: ${(reason) ? reason : "Nie podano"}`
 					})
 				]
-			}));
+			}, true));
 		}
 		Promise.allSettled(promisesToHandle)
 			.then(() => M2D_GeneralUtils.delay(s * 1000))
 			.then(() => M2D_GeneralUtils.exitHandler(exitCode ?? 0));	
 	}),
 	sendDevMessage: (message: string, guildId?: string, channelId?: string) => new Promise<void>((res, rej) => {
-		const promisesToHandle: Promise<void>[] = [];
-		const devMsg: MessageOptions = {
-			embeds: [
-				M2D_GeneralUtils.embedBuilder({
-					type: "info",
-					title: "Wiadomość od dewelopera",
-					description: `Deweloper wysłał następującą wiadomość:\n\n**${message}**`
-				})
-			]
-		};
+		M2D_MessagesUtils.getMessage("generalDevMessage", [ message ])
+			.then((msg) => {
 		
-		new Promise<TextChannel | ThreadChannel>((res2, rej2) => {
-			if(guildId) {
-				M2D_ClientUtils.getLastUsedChannel(guildId)
-					.then((ch) => res2(ch))
-					.catch((err) => rej2(err));
-				if(channelId) {
-					M2D_ClientUtils.getGuildChannelFromId(guildId, channelId)
-						.then((ch) => {
-							if(ch.type === "GUILD_TEXT") {
-								res2(ch as TextChannel);
-							} else if(ch.type === "GUILD_PUBLIC_THREAD") {
-								res2(ch as ThreadChannel);
-							} else rej2({
-								type: M2D_EErrorTypes.Client,
-								subtype: M2D_EClientErrorSubtypes.WrongChannelType,
-								data: {
-									guildId,
-									channelId,
-									expectedTypes: [ "GUILD_TEXT", "GUILD_PUBLIC_THREAD" ],
-									receivedType: ch.type
-								}
-							} as M2D_IClientWrongChannelTypeError);
+				const promisesToHandle: Promise<void>[] = [];
+				const devMsg: MessageOptions = {
+					embeds: [
+						M2D_GeneralUtils.embedBuilder({
+							type: "info",
+							title: "Wiadomość od dewelopera",
+							description: `Deweloper wysłał następującą wiadomość:\n\n**${message}**`
 						})
-						.catch((err) => rej2(err));
-				}
-			} else {
-				rej2();
-			}
-		})
-		.then((ch) => M2D_ClientUtils.sendMessageInGuild(guildId as string, ch.id, devMsg)
-			.then(() => M2D_LogUtils.logMessage(`success`, `Wiadomość deweloperska została wysłana na kanał "${ch.name}" (${ch.id}) na serwerze o ID "${guildId}"`))
-			.catch((err) => Promise.reject(err))
-		)
-		.then(() => res())
-		.catch((err: M2D_Error | undefined) => {
-			if(err) {
-				M2D_LogUtils.logMultipleMessages(`error`, [`Wysłanie wiadomości deweloperskiej na serwer o ID "${guildId}" nie powiodło się!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`])
-					.then(() => rej(err));
-			} else {
-				const promisesToHandle: Promise<any>[] = [];
+					]
+				};
+				
+				return new Promise<TextChannel | ThreadChannel>((res2, rej2) => {
+					if(guildId) {
+						M2D_ClientUtils.getLastUsedChannel(guildId)
+							.then((ch) => res2(ch))
+							.catch((err) => rej2(err));
+						if(channelId) {
+							M2D_ClientUtils.getGuildChannelFromId(guildId, channelId)
+								.then((ch) => {
+									if(ch.type === "GUILD_TEXT") {
+										res2(ch as TextChannel);
+									} else if(ch.type === "GUILD_PUBLIC_THREAD") {
+										res2(ch as ThreadChannel);
+									} else rej2({
+										type: M2D_EErrorTypes.Client,
+										subtype: M2D_EClientErrorSubtypes.WrongChannelType,
+										data: {
+											guildId,
+											channelId,
+											expectedTypes: [ "GUILD_TEXT", "GUILD_PUBLIC_THREAD" ],
+											receivedType: ch.type
+										}
+									} as M2D_IClientWrongChannelTypeError);
+								})
+								.catch((err) => rej2(err));
+						}
+					} else {
+						rej2();
+					}
+				})
+				.then((ch) => M2D_ClientUtils.sendMessageInGuild(guildId as string, ch.id, devMsg)
+					.then(() => M2D_LogUtils.logMessage(`success`, `Wiadomość deweloperska została wysłana na kanał "${ch.name}" (${ch.id}) na serwerze o ID "${guildId}"`))
+					.catch((err) => Promise.reject(err))
+				)
+				.then(() => res())
+				.catch((err: M2D_Error | undefined) => {
+					if(err) {
+						M2D_LogUtils.logMultipleMessages(`error`, [`Wysłanie wiadomości deweloperskiej na serwer o ID "${guildId}" nie powiodło się!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`])
+							.then(() => rej(err));
+					} else {
+						const promisesToHandle: Promise<any>[] = [];
 
-				for(const v of M2D_ClientUtils.getLastUsedChannels()) {
-					promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, devMsg));
-				}
-				return M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie wiadomości deweloperskiej na ostatnio używane kanały tekstowe na wszystkich serwerach...`, `Wynik tej operacji będzie nieznany`])
-					.then(() => Promise.allSettled(promisesToHandle))
-					.then(() => res());
-			}
+						for(const v of M2D_ClientUtils.getLastUsedChannels()) {
+							promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, devMsg));
+						}
+						return M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie wiadomości deweloperskiej na ostatnio używane kanały tekstowe na wszystkich serwerach...`, `Wynik tej operacji będzie nieznany`])
+							.then(() => Promise.allSettled(promisesToHandle))
+							.then(() => res());
+					}
+				})
 		})
+		.catch((err) => rej(err));
 	}),
 	ignoreError: (promise: Promise<any>) => new Promise<undefined | any>((res, rej) => {
 		promise
@@ -288,29 +288,32 @@ const M2D_GeneralUtils = {
 			.then((isDevModeEn: boolean) => { isDevModeEnabled = isDevModeEn; })
 			.then(() => {
 				const promisesToHandle: Promise<any>[] = [];
-				const message: MessageOptions = {
-					embeds: [
-						M2D_GeneralUtils.embedBuilder({
-							type: `info`,
-							title: `Muzyk2D został aktywowany!`,
-							description: `Wszystkie moduły zostały poprawnie zainicjalizowane!\n\n**Wersja**: \`${M2D_GeneralUtils.getMuzyk2DVersion()}\`\nby ${M2D_GeneralUtils.getMuzyk2DAuthor()}${(isDevModeEnabled) ? "\n\n**TRYB DEWELOPERSKI**" : ""}`
-						})
-					]
-				};
-				
-				for(const [i, v] of M2D_ClientUtils.getLastUsedChannels().entries()) {
-					promisesToHandle.push(
-						M2D_GeneralUtils.ignoreError(
-							M2D_ClientUtils.getGuildChannelFromId(v.guildId, v.channelId)
-								.then((ch) => M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, message, deleteMsg))
-						)
-					);
-				}
 
-				M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie startowej wiadomości...`, `Wynik tej operacji nie będzie znany.`])
-					.then(() => Promise.all(promisesToHandle)
-						.then(() => res())
-					)
+				M2D_MessagesUtils.getMessage("generalStartupMessage", [ M2D_GeneralUtils.getMuzyk2DVersion(), M2D_GeneralUtils.getMuzyk2DAuthor(), (isDevModeEnabled) ? `\n\n**TRYB DEWELOPERSKI**` : `` ])
+					.then((msg) => {
+						const message: MessageOptions = {
+							embeds: [
+								msg
+							]
+						};
+						
+						for(const [i, v] of M2D_ClientUtils.getLastUsedChannels().entries()) {
+							promisesToHandle.push(
+								M2D_GeneralUtils.ignoreError(
+									M2D_ClientUtils.getGuildChannelFromId(v.guildId, v.channelId)
+										.then((ch) => M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, message, deleteMsg))
+								)
+							);
+						}
+
+						return M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie startowej wiadomości...`, `Wynik tej operacji nie będzie znany.`])
+							.then(() => Promise.allSettled(promisesToHandle)
+								.then(() => Promise.resolve())
+								.catch(() => Promise.resolve())
+							);
+				})
+					.then(() => res())
+					.catch((err) => rej(err));
 			});
 	}),
 	initGeneralCapabilities: () => new Promise<void>((res, rej) => {

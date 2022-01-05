@@ -8,6 +8,7 @@
 	import { M2D_ClientUtils } from "./client";
 	import { M2D_IPlayback, M2D_PlaybackUtils } from "./playback";
 	import { M2D_ConfigUtils } from "./config";
+	import { M2D_MessagesUtils } from "./messages";
 //#endregion
 
 //#region Types
@@ -252,6 +253,12 @@ const M2D_PlaylistUtils = {
 				}
 			} as M2D_IPlaylistNoPlaylistError));
 	}),
+	getCurrentPlaylistEntry: (guildId: string) => new Promise<M2D_IPlaylistEntry>((res, rej) => {
+		M2D_PlaybackUtils.getPlayback(guildId)
+			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, pB.currentPlaylistEntryId))
+			.then((pE) => res(pE))
+			.catch((err) => rej(err));	
+	}),
 	getEntry: (guildId: string, entryId: string) => new Promise<M2D_IPlaylistEntry>((res, rej) => {
 		M2D_PlaylistUtils.getPlaylist(guildId)
 			.then((pl) => {
@@ -334,31 +341,14 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 								...metadata,
 								requestedBy: ((message.member as GuildMember).nickname) ? `${(message.member as GuildMember).nickname} (${user.tag})` : `${user.tag}`
 							}))
-							.then((pe: M2D_IPlaylistEntry) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+							.then((pe: M2D_IPlaylistEntry) => M2D_MessagesUtils.getMessage("playlistAddedEntry", [ pe.id ], pe.thumbnailUrl, undefined, [
+								{ name: "Tytuł", value: pe.title, inline: true },
+								{ name: "Autor", value: pe.author, inline: true },
+								{	name: "Dodano przez", value: pe.requestedBy, inline: true }
+							]))
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 								embeds: [
-									M2D_GeneralUtils.embedBuilder({
-										type: "success",
-										title: "Dodano wpis do playlisty!",
-										description: `Pomyślnie **dodano nowy wpis do playlisty**!\n**ID wpisu** (potrzebne do ewentualnego usuwania pozycji): \`${pe.id}\``,
-										fields: [
-											{
-												name: "Tytuł",
-												value: pe.title,
-												inline: true
-											},
-											{
-												name: "Autor",
-												value: pe.author,
-												inline: true
-											},
-											{
-												name: "Dodano przez",
-												value: pe.requestedBy,
-												inline: true
-											}
-										],
-										thumbnailURL: pe.thumbnailUrl
-									})
+									msg
 								]
 							}))
 							.then(() => res())
@@ -374,7 +364,25 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 			} as M2D_ICommandsMissingSuppParametersError);
 		}),
 		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
-			rej(error);
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				switch(M2D_GeneralUtils.getErrorString(error)) {
+					case "YOUTUBEAPI_WRONG_URL":
+						M2D_CommandUtils.getParameterValue(parameters, "url")
+							.then((url: string) => M2D_MessagesUtils.getMessage("youtubeAPIWrongUrl", [ url ]))
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [ msg ]
+							}))
+							.then(() => res())
+							.catch((err) => rej(err));
+					break;
+					default:
+						rej(error);	
+				}
+			} else rej(error);
+			
+			//rej(error);
 		})
 	},
 	{
@@ -398,20 +406,17 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
 
-				let peId: string;
-
 				M2D_CommandUtils.getParameterValue(parameters, "id")
-					.then((val: string) => { peId = val; })
-					.then(() => M2D_PlaylistUtils.deletePlaylistEntry(guild.id, peId))
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+					.then((peId: string) => M2D_PlaylistUtils.deletePlaylistEntry(guild.id, peId)
+						.then(() => peId)
+					)
+					.then((peId) => M2D_MessagesUtils.getMessage("playlistDeletedEntry", [ peId ]))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: "Usunięto wpis!",
-								description: `Pomyślnie **usunięto wpis o ID** \`${peId}\` **z playlisty**!`
-							})
+							msg
 						]
 					}))	
+					.then(() => res())
 					.catch((err) => rej(err));
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
@@ -440,14 +445,9 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_PlaylistUtils.flushPlaylist(guild.id)
-					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "success",
-								title: `Wyczyszczono playlistę!`,
-								description: `Pomyślnie **wyczyszczono playlistę**!`
-							})
-						]
+					.then(() => M2D_MessagesUtils.getMessage("playlistFlushedPlaylist"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+						embeds: [	msg ]
 					}))
 					.then(() => res())
 					.catch((err) => rej(err));
@@ -527,24 +527,14 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 					})
 					.then((oS: string) => { 
 						if(oS === '\n') {
-							return M2D_ClientUtils.sendMessageReplyInGuild(message, {
-								embeds: [
-									M2D_GeneralUtils.embedBuilder({
-										type: "error",
-										title: `Playlista`,
-										description: `Playlista jest **pusta**!`
-									})
-								]
-							});
-						} else return M2D_ClientUtils.sendMessageReplyInGuild(message, {
-								embeds: [
-									M2D_GeneralUtils.embedBuilder({
-										type: "info",
-										title: `Playlista`,
-										description: oS
-									})
-								]
-							});
+							return M2D_MessagesUtils.getMessage("playlistEmptyPlaylist")
+								.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+									embeds: [ msg ]
+								}));
+						} else return M2D_MessagesUtils.getMessage("playlistShowPlaylist", [ oS ])
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [ msg ]
+							}));
 					})
 					.then(() => res())
 					.catch((err) => rej(err));

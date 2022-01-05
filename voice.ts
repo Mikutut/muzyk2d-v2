@@ -8,6 +8,7 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_ICommand, M2D_ICommandCategory, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_CATEGORIES, M2D_ICommandsMissingSuppParametersError, M2D_ECommandsErrorSubtypes, M2D_CommandUtils } from "./commands";
 	import { M2D_PlaybackUtils } from "./playback";
+	import { M2D_MessagesUtils } from "./messages";
 //#endregion
 
 //#region Types
@@ -449,21 +450,13 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 							const vCh = guildMember.voice.channel as VoiceBasedChannel;
 
 							M2D_VoiceUtils.createVoiceConnection(guild.id, vCh.id)
-								.then(() => {
-									M2D_ClientUtils.sendMessageReplyInGuild(message, {
-										embeds: [
-											M2D_GeneralUtils.embedBuilder({
-												type: "success",
-												title: "Dołączono!",
-												description: `Pomyślnie dołączono na kanał **${vCh.name}**!`
-											})
-										]
-									})
-										.then(() => res())
-										.catch((err) => rej(err));
-								})
-								.catch((err) => rej(err));
-						} else rej({
+								.then(() => M2D_MessagesUtils.getMessage("voiceConnectedToVoiceChannel", [ vCh.name ]))
+								.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+									embeds: [ msg ]
+								}))
+								.then(() => Promise.resolve())
+								.catch((err) => Promise.reject(err));
+						} else return Promise.reject({
 							type: M2D_EErrorTypes.Voice,
 							subtype: M2D_EVoiceErrorSubtypes.UserNotConnectedToVoiceChannel,
 							data: {
@@ -472,6 +465,7 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IVoiceUserNotConnectedToVoiceChannelError);
 					})
+					.then(() => res())
 					.catch((err) => rej(err));	
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
@@ -487,28 +481,18 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 
 				switch(M2D_GeneralUtils.getErrorString(error)) {
 					case "VOICE_CONNECTED":
-						M2D_ClientUtils.sendMessageReplyInGuild(message, {
-							embeds: [
-								M2D_GeneralUtils.embedBuilder({
-									title: "Błąd!",
-									description: `Muzyk2D **już znajduje się na kanale głosowym**!`,
-									type: "error"
-								})
-							]
-						})
+						M2D_MessagesUtils.getMessage("voiceClientAlreadyInVoiceChannel")
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [ msg ]
+							}))	
 							.then(() => res())
 							.catch((err) => rej(err));	
 					break;
 					case "VOICE_USER_NOT_CONNECTED_TO_VOICE_CHANNEL":
-						M2D_ClientUtils.sendMessageReplyInGuild(message, {
-							embeds: [
-								M2D_GeneralUtils.embedBuilder({
-									title: "Błąd!",
-									description: `**Nie znajdujesz się na żadnym kanale głosowym**, więc Muzyk2D **nie wie, gdzie ma dołączyć**!`,
-									type: "error"
-								})
-							]
-						})
+						M2D_MessagesUtils.getMessage("voiceUserNotInVoiceChannel")
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [ msg ]
+							}))	
 							.then(() => res())
 							.catch((err) => rej(err));	
 					break;
@@ -535,22 +519,8 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 				M2D_VoiceUtils.isVoiceConnectionDisconnected(guild.id)
 					.then((isDis) => {
 						if(!isDis) {
-							M2D_VoiceUtils.destroyVoiceConnection(guild.id)
-								.then(() => {
-									M2D_ClientUtils.sendMessageReplyInGuild(message, {
-										embeds: [
-											M2D_GeneralUtils.embedBuilder({
-												type: "success",
-												title: "Odłączono!",
-												description: `Pomyślnie odłączono z kanału głosowego!`
-											})
-										]
-									})
-										.then(() => res())
-										.catch((err) => rej(err));
-								})
-								.catch(err => rej(err));
-						} else rej({
+							return M2D_VoiceUtils.destroyVoiceConnection(guild.id);
+						} else return Promise.reject({
 							type: M2D_EErrorTypes.Voice,
 							subtype: M2D_EVoiceErrorSubtypes.Disconnected,
 							data: {
@@ -558,6 +528,11 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IVoiceDisconnectedError);
 					})
+					.then(() => M2D_MessagesUtils.getMessage("voiceDisconnectedFromVoiceChannel"))
+					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+						embeds: [ msg ]
+					}))
+					.then(() => res())
 					.catch((err) => rej(err));
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
@@ -574,15 +549,10 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 				const errMessage = M2D_GeneralUtils.getErrorString(error);
 
 				if(errMessage === "VOICE_DESTROYED" || errMessage === "VOICE_DISCONNECTED") {
-					M2D_ClientUtils.sendMessageReplyInGuild(message, {
-						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "error",
-								title: "Błąd!",
-								description: `Muzyk2D **nie znajduje się obecnie na żadnym kanale głosowym**!`
-							})
-						]
-					})
+					M2D_MessagesUtils.getMessage("voiceClientNotInVoiceChannel")
+						.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+							embeds: [ msg ]
+						}))
 						.then(() => res())
 						.catch((err) => rej(err));
 				} else rej(error);

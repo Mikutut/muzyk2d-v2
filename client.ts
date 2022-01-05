@@ -8,6 +8,7 @@
 	import { M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_PlaylistUtils } from "./playlist";
 	import { M2D_PlaybackUtils } from "./playback";
+	import { M2D_MessagesUtils } from "./messages";
 	import * as fs from "fs/promises";
 //#endregion
 
@@ -191,15 +192,13 @@ const M2D_ClientUtils = {
 										};
 
 										M2D_ClientUtils.executeMessageCommand(parsedMessage, suppParameters)
-											.catch((err: M2D_Error) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-												embeds: [
-													M2D_GeneralUtils.embedBuilder({
-														type: "error",
-														title: `Błąd!`,
-														description: `Wystąpił błąd podczas **wykonywania komendy** \`${parsedMessage.fullCommand}\`.\n\n**Oznaczenie błędu**: \`${M2D_GeneralUtils.getErrorString(err)}\`\n**Dane o błędzie**: \`${JSON.stringify(err.data)}\``
-													})
-												]
-											}))
+											.catch((err: M2D_Error) => M2D_MessagesUtils.getMessage("clientInvokingCommandError", [ parsedMessage.fullCommand, M2D_GeneralUtils.getErrorString(err), JSON.stringify(err.data) ])
+												.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+													embeds: [
+														msg	
+													]
+												}))
+											)
 											.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Wystąpił błąd podczas wysyłania wiadomości zwrotnej o błędzie!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 									})
 								)
@@ -290,7 +289,7 @@ const M2D_ClientUtils = {
 												}
 											} as M2D_IGeneralDevModeUserNotAllowedError));
 									} else {
-										if(!(command as M2D_ICommand).isUtilCommand || ((command as M2D_ICommand).isUtilCommand && !M2D_GeneralUtils.isUserDevModeAllowed(suppParameters.user.id))) {
+										if(!(command as M2D_ICommand).isUtilCommand || ((command as M2D_ICommand).isUtilCommand && M2D_GeneralUtils.isUserDevModeAllowed(suppParameters.user.id))) {
 											command = command as M2D_ICommand;
 											const { fullCommand, keyword, parameters } = parsedMessage;
 
@@ -436,12 +435,11 @@ const M2D_ClientUtils = {
 																		.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 																		.then(() => msg.delete())
 																		.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
-																		.then(() => res())
-																		.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
-																			.then(() => res())
-																		);
+																		.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ]));
+																	res();
 																} else res();
-															});
+															})
+															.catch((err) => rej(err));
 													})
 													.catch((err: Error) => rej({
 														type: M2D_EErrorTypes.Client,
@@ -499,6 +497,9 @@ const M2D_ClientUtils = {
 								})
 								.catch((err) => Promise.reject(err))
 							)
+							.then((channel: TextChannel | ThreadChannel) => M2D_ClientUtils.setLastUsedChannel(guildId, channel.id)
+								.then(() => channel)
+							)
 							.catch(() => M2D_ClientUtils.getLastUsedChannel(guildId)
 								.then((ch) => Promise.resolve(ch))
 								.catch((err) => Promise.reject(err))
@@ -511,16 +512,14 @@ const M2D_ClientUtils = {
 									return channel.sendTyping()
 										.then(() => channel.send(message)
 											.then((msg: Message<boolean>) => {
-												if(autoDeleteMessageReplies) {
-													M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`)
-														.then(() => M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000))
+												if(autoDeleteMessageReplies || deleteMsg) {
+													M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+														.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 														.then(() => msg.delete())
 														.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
-														.then(() => res())
-														.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
-															.then(() => res())
-														);
-												}
+														.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ]));
+													res();
+												} else res();
 											})
 											.catch((err: Error) => Promise.reject({
 												type: M2D_EErrorTypes.Client,
@@ -581,14 +580,13 @@ const M2D_ClientUtils = {
 															.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 															.then(() => msg.delete())
 															.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
-															.then(() => res())
-															.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
-																.then(() => res())
-															);
+															.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ]));
+														res();
 													} else {
 														res();
 													}
-												});
+												})
+												.catch((err) => rej(err));
 										})
 									)
 									.catch((err: Error) => rej({

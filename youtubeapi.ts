@@ -222,7 +222,7 @@ const M2D_YTAPIUtils = {
 								});
 						});
 						streamData.stream.on("end", async () => {
-							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.stream}" - strumień dobiegł końca!`)
+							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - strumień dobiegł końca!`)
 								.then(() => {
 									const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
 
@@ -337,6 +337,7 @@ const M2D_YTAPIUtils = {
 	};
 	export {
 		M2D_YTAPIUtils,
+		M2D_YT_VIDEO_STREAM_TIMEOUT,
 		M2D_EYTAPIErrorSubtypes
 	}
 //#endregion

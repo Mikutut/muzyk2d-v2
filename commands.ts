@@ -5,6 +5,7 @@
 	import { nanoid } from "nanoid";
 	import { M2D_ClientUtils } from "./client";
 	import { M2D_ConfigUtils } from "./config";
+	import { M2D_MessagesUtils } from "./messages";
 //#endregion
 
 //#region Types
@@ -351,15 +352,12 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 									}
 
 									return Promise.all(promisesToHandle)
-										.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-												embeds: [
-													M2D_GeneralUtils.embedBuilder({
-														type: "info",
-														title: `Informacje o komendach z kategorii "${cat.label}"`,
-														description: outputMsg
-													})
-												]
-											})
+										.then(() => M2D_MessagesUtils.getMessage("commandsHelpShowCommandsFromCategory", [ cat.label, outputMsg ])
+												.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+													embeds: [
+														msg
+													]
+												}))
 												.then(() => res())
 												.catch((err) => Promise.reject(err))
 										)
@@ -370,15 +368,12 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 						.catch((err: M2D_ICommandsMissingCategoryError) => rej(err))
 					)
 					.catch(() => {
-						M2D_ClientUtils.sendMessageReplyInGuild(message, {
-							embeds: [
-								M2D_GeneralUtils.embedBuilder({
-									type: `error`,
-									title: `Nie podano kategorii!`,
-									description: `Nie podano żadnej kategorii, z której miałyby zostać wyświetlone komendy.\n**Oto lista dostępnych kategorii**:\n\`\`\`${Object.entries(M2D_CATEGORIES).map(([i, v]) => v.label).join(",\n")}\`\`\``
-								})
-							]
-						})
+						M2D_MessagesUtils.getMessage("commandsHelpNoCategoryProvided", [ Object.entries(M2D_CATEGORIES).map(([i, v]) => v.label).join(",\n") ])
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [
+									msg
+								]
+							}))	
 							.then(() => res())
 							.catch((err) => rej(err));	
 					});
