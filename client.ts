@@ -20,7 +20,7 @@
 	interface M2D_IClientLastUsedChannel {
 		guildId: string;
 		channelId: string;
-	}
+	};
 	//#region Error types
 		const enum M2D_EClientErrorSubtypes {
 			DiscordAPI = "DISCORD_API",
@@ -160,7 +160,7 @@ const M2D_ClientUtils = {
 					M2D_ConfigUtils.getConfigValue("sendMessageOnStartup")
 						.then((val: string) => {
 							if(val === "true") {
-								return M2D_GeneralUtils.sendStartupMessage();
+								return M2D_GeneralUtils.sendStartupMessage(true);
 							} else return Promise.resolve();
 						})
 				))
@@ -409,7 +409,7 @@ const M2D_ClientUtils = {
 			})
 			.catch((err) => rej(err));	
 	}),
-	sendMessageInGuild: (guildId: string, channelId: string | undefined, message: MessageOptions) => new Promise<void>((res, rej) => {
+	sendMessageInGuild: (guildId: string, channelId: string | undefined, message: MessageOptions, deleteMsg?: boolean) => new Promise<void>((res, rej) => {
 		M2D_ConfigUtils.getConfigValue("autoDeleteMessageReplies", guildId)
 			.then((val) => {
 				const autoDeleteMessageReplies = (val === "true") ? true : false;
@@ -431,16 +431,16 @@ const M2D_ClientUtils = {
 													.then((msg: Message<boolean>) => {
 														M2D_ClientUtils.setLastUsedChannel(guildId, channelId)	
 															.then(() => {
-																if(autoDeleteMessageReplies) {
-																	M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`)
-																		.then(() => M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000))
+																if(autoDeleteMessageReplies || deleteMsg) {
+																	M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+																		.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 																		.then(() => msg.delete())
 																		.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
 																		.then(() => res())
 																		.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
 																			.then(() => res())
 																		);
-																}
+																} else res();
 															});
 													})
 													.catch((err: Error) => rej({
@@ -553,7 +553,7 @@ const M2D_ClientUtils = {
 			})
 			.catch((err) => rej(err));	
 	}),
-	sendMessageReplyInGuild: (orgMessage: Message<boolean>, message: MessageOptions) => new Promise<void>((res, rej) => {
+	sendMessageReplyInGuild: (orgMessage: Message<boolean>, message: MessageOptions, deleteMsg?: boolean) => new Promise<void>((res, rej) => {
 		const channel = orgMessage.channel;
 		const guild = orgMessage.guild as Guild;
 
@@ -576,17 +576,17 @@ const M2D_ClientUtils = {
 										.then((msg: Message<boolean>) => {
 											M2D_ClientUtils.setLastUsedChannel(guild.id, channel.id)
 												.then(() => {
-													if(autoDeleteMessageReplies) {
-														if(autoDeleteMessageReplies) {
-															M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`)
-																.then(() => M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000))
-																.then(() => msg.delete())
-																.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
+													if(autoDeleteMessageReplies || deleteMsg) {
+														M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+															.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
+															.then(() => msg.delete())
+															.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
+															.then(() => res())
+															.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
 																.then(() => res())
-																.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Nie udało się usunąć odpowiedzi!`, `Treść błędu: "${err.message}"` ])
-																	.then(() => res())
-																);
-														}
+															);
+													} else {
+														res();
 													}
 												});
 										})

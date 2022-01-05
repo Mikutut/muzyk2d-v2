@@ -10,9 +10,19 @@
 	import { M2D_EPlaylistErrorSubtypes, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
 	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError, M2D_PlaybackUtils } from "./playback";
 	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
+	import { M2D_EMessagesErrorSubtypes, M2D_MessagesError } from "./messages";
 //#endregion
 
 //#region Types
+	type M2D_EmbedType = "info" | "success" | "error";
+	interface M2D_IEmbedOptions {
+		title?: string;
+		description: string;
+		type: M2D_EmbedType;
+		imageURL?: string;
+		thumbnailURL?: string;
+		fields?: EmbedField[];
+	};
 	const enum M2D_EErrorTypes {
 		General = "GENERAL",
 		Commands = "COMMANDS",
@@ -23,6 +33,7 @@
 		Playback = "PLAYBACK",
 		Playlist = "PLAYLIST",
 		YTAPI = "YOUTUBEAPI",
+		Messages = "MESSAGES",
 		Unknown = "UNKNOWN"
 	};
 	type M2D_ErrorSubtypes = "UNKNOWN" |
@@ -34,7 +45,8 @@
 		M2D_EVoiceErrorSubtypes |
 		M2D_EPlaylistErrorSubtypes |
 		M2D_EPlaybackErrorSubtypes |
-		M2D_EYTAPIErrorSubtypes;
+		M2D_EYTAPIErrorSubtypes |
+		M2D_EMessagesErrorSubtypes;
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
@@ -49,8 +61,8 @@
 		M2D_VoiceError |
 		M2D_PlaylistError |
 		M2D_PlaybackError |
-		M2D_YTAPIError;
-
+		M2D_YTAPIError |
+		M2D_MessagesError;
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
 			NoEnvVariable = "NO_ENV_VARIABLE",
@@ -75,16 +87,6 @@
 		type M2D_GeneralError = M2D_IGeneralNoEnvVariableError |
 			M2D_IGeneralDevModeUserNotAllowedError;
 	//#endregion
-
-	type M2D_EmbedType = "info" | "success" | "error";
-	interface M2D_IEmbedOptions {
-		title?: string;
-		description: string;
-		type: M2D_EmbedType;
-		imageURL?: string;
-		thumbnailURL?: string;
-		fields?: EmbedField[];
-	}
 //#endregion
 
 dotenvConfig();
@@ -277,7 +279,7 @@ const M2D_GeneralUtils = {
 			.then((ret_value: any) => res(ret_value))
 			.catch(() => res(undefined));
 	}),
-	sendStartupMessage: () => new Promise<void>((res, rej) => {
+	sendStartupMessage: (deleteMsg?: boolean) => new Promise<void>((res, rej) => {
 		let isDevModeEnabled = false;
 
 		M2D_GeneralUtils.ignoreError(
@@ -300,7 +302,7 @@ const M2D_GeneralUtils = {
 					promisesToHandle.push(
 						M2D_GeneralUtils.ignoreError(
 							M2D_ClientUtils.getGuildChannelFromId(v.guildId, v.channelId)
-								.then((ch) => M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, message))
+								.then((ch) => M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, message, deleteMsg))
 						)
 					);
 				}

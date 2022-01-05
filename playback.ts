@@ -10,6 +10,7 @@
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
 	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils } from "./youtubeapi";
+	import { M2D_MessagesUtils } from "./messages";
 //#endregion
 
 //#region Types
@@ -382,15 +383,22 @@ const M2D_PlaybackUtils = {
 				} as M2D_IPlaybackAlreadyDownloadingStreamError);
 			})
 			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, entryId)
-				.then((pe) => M2D_YTAPIUtils.getVideoStream(pe.url))
-				.then((stream) => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream))
+				.then((pe) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PbID: "${pB.id}" - uzyskano pozycję na playliście!`)
+					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url))
+				)
+				.then((stream) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PbID: "${pB.id}" - uzyskano strumień wideo!`)
+					.then(() => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream))
+				)
 				.then(() => {
 					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
 
 					M2D_PLAYBACKS[idx].currentPlaylistEntryId = entryId;
 					M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = false;
+
+					return pB;
 				})
 			)
+			.then((pB: M2D_IPlayback) => M2D_LogUtils.logMessage(`success`, `GID: "${guildId}" | PbID: "${pB.id}" - pomyślnie odtworzono pozycję "${entryId}" z playlisty!`))
 			.then(() => res())
 			.catch((err) => rej(err));
 	}),
@@ -523,6 +531,15 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id)
 						.catch(() => M2D_PlaybackUtils.createPlayback(guild.id))
 					)
+					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+						embeds: [
+							M2D_GeneralUtils.embedBuilder({
+								type: "info",
+								title: `Pobieranie strumienia...`,
+								description: `Muzyk2D rozpoczął proces pobierania strumienia z YouTube.\n\n**W przeciągu 30 sekund powinno rozpocząć się odtwarzanie utworu.**`
+							})
+						]
+					}))
 					.then(() => M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id))
 					.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 						embeds: [
@@ -544,7 +561,29 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 			} as M2D_ICommandsMissingSuppParametersError);
 		}),
 		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
-			rej(error);
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				switch(M2D_GeneralUtils.getErrorString(error)) {
+					case "VOICE_USER_NOT_CONNECTED_TO_VOICE_CHANNEL":
+						M2D_MessagesUtils.getMessage("voiceUserNotInVoiceChannel")
+							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+								embeds: [ msg ]
+							}))
+							.then(() => res());
+					break;
+					default:
+						rej(error);
+				}
+				
+				//rej(error);
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
 		})
 	},
 	{

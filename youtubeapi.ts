@@ -177,70 +177,72 @@ const M2D_YTAPIUtils = {
 	getVideoStream: (url: string) => new Promise<M2D_IYTAPIVideoStream>((res, rej) => {
 		if(M2D_YTAPIUtils.isUrlParsable(url)) {
 			M2D_LogUtils.logMessage(`info`, `Pobieranie strumienia audio wideo o URL "${url}" poprzez ytdl...`)
-				.then(() => { 
-						return Promise.race([
-							M2D_GeneralUtils.delay(M2D_YT_VIDEO_STREAM_TIMEOUT * 1000)
-								.then(() => M2D_LogUtils.logMessage(`error`, `Nie udało się uzyskać strumienia wideo o URL "${url}" w czasie ${M2D_YT_VIDEO_STREAM_TIMEOUT} sekund.`)
-									.then(() => rej({
-										type: M2D_EErrorTypes.YTAPI,
-										subtype: M2D_EYTAPIErrorSubtypes.VideoStreamTimedOut,
-										data: {}
-									} as M2D_IYTAPIVideoStreamTimedOut))
-								),
-							ytdl(url, {
-								quality: "lowestaudio",
-								highWaterMark: 1<<25
-							})
-								.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumien audio wideo o URL "${url}"!`)
-									.then(() => {
-										const sId = nanoid(6);
-										const streamData = {
-											stream,
-											id: sId
-										};
-										M2D_VIDEO_STREAMS.push(streamData);
-										M2D_LogUtils.logMultipleMessages(`info`, [ `Nadano ID odebranemu strumieniowi.`, `ID strumienia: "${sId}"` ])
-											.then(() => {
-												stream.on("data", () => M2D_LogUtils.logMessage(`info`, `SID: "${sId}" - odebrano pakiet danych!`));
-												stream.on("pause", () => M2D_LogUtils.logMessage(`info`, `SID: "${sId}" - zapauzowano strumień!`));
-												stream.on("resume", () => M2D_LogUtils.logMessage(`info`, `SID: "${sId}" - wznowiono strumień!`));
-												stream.on("close", () => { 
-													M2D_LogUtils.logMessage(`info`, `SID: "${sId}" - zamknięto (zniszczono) strumień!`)
-														.then(() => {
-															const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === sId);
+				.then(() => Promise.race([
+					M2D_GeneralUtils.delay(M2D_YT_VIDEO_STREAM_TIMEOUT * 1000)
+						.then(() => Promise.reject({
+							type: M2D_EErrorTypes.YTAPI,
+							subtype: M2D_EYTAPIErrorSubtypes.VideoStreamTimedOut,
+							data: {}
+						} as M2D_IYTAPIVideoStreamTimedOut)),
+					ytdl(url, {
+						quality: "lowestaudio",
+						highWaterMark: 1<<25
+					})
+						.then((stream: Readable) => stream)		
+						.catch(() => M2D_LogUtils.logMessage(`error`, `Wystąpił błąd podczas pobierania strumienia audio!`)
+							.then(() => Promise.reject({
+								type: M2D_EErrorTypes.YTAPI,
+								subtype: "UNKNOWN",
+								data: {
+									errorData: null
+								}
+							} as M2D_IUnknownError))		
+						)
+				]))
+				.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumien audio wideo o URL "${url}"!`)
+					.then(() => {
+						const sId = nanoid(6);
+						const streamData = {
+							stream,
+							id: sId
+						};
+						M2D_VIDEO_STREAMS.push(streamData);
+						return streamData;
+					}))
+				.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`info`, [ `Nadano ID odebranemu strumieniowi.`, `ID strumienia: "${streamData.id}"` ])
+					.then(() => {
+						streamData.stream.on("pause", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zapauzowano strumień!`));
+						streamData.stream.on("resume", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - wznowiono strumień!`));
+						streamData.stream.on("close", async () => { 
+							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zamknięto (zniszczono) strumień!`)
+								.then(() => {
+									const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
 
-															M2D_VIDEO_STREAMS.splice(idx, 1);
-														});
-												});
-												stream.on("end", () => {
-													M2D_LogUtils.logMessage(`info`, `SID: "${sId}" - strumień dobiegł końca!`)
-														.then(() => {
-															const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === sId);
+									M2D_VIDEO_STREAMS.splice(idx, 1);
+								});
+						});
+						streamData.stream.on("end", async () => {
+							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.stream}" - strumień dobiegł końca!`)
+								.then(() => {
+									const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
 
-															M2D_VIDEO_STREAMS.splice(idx, 1);
-														});
-												});
-												stream.on("error", (err: Error) => {
-													M2D_YTAPIUtils.handleVideoStreamError(streamData, err)
-														.then((err) => Promise.reject(err))
-														.catch((err) => Promise.reject(err));
-												});
-												res(streamData);
-											})
-											.catch((err) => rej(err));
-									})
-								)
-								.catch(() => Promise.reject())
-						]);
-				})
-				.catch(() => M2D_LogUtils.logMessage(`error`, `Wystąpił błąd podczas pobierania strumienia audio!`))
-				.then(() => rej({
-					type: M2D_EErrorTypes.YTAPI,
-					subtype: "UNKNOWN",
-					data: {
-						errorData: null
-					}
-				} as M2D_IUnknownError));
+									M2D_VIDEO_STREAMS.splice(idx, 1);
+								});
+						});
+						streamData.stream.on("error", async (err: Error) => M2D_YTAPIUtils.handleVideoStreamError(streamData, err));
+						return streamData;
+					})
+				)
+				.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`success`, [`SID: "${streamData.id}" - uzyskano końcowe dane!`, `Dane: "${JSON.stringify(streamData)}"`])
+					.then(() => res(streamData))
+				)
+				.catch((err) => {
+					if(M2D_GeneralUtils.getErrorString(err) === "YOUTUBEAPI_VIDEO_STREAM_TIMED_OUT") {
+						return M2D_LogUtils.logMessage(`error`, `Nie udało się uzyskać strumienia wideo o URL "${url}" w czasie ${M2D_YT_VIDEO_STREAM_TIMEOUT} sekund.`)
+							.then(() => rej(err));
+					} else return M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się przetworzyć i przekazać strumienia wideo o URL "${url}!"`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err)}"`])
+						.then(() => rej(err));
+				});
 		} else rej({
 			type: M2D_EErrorTypes.YTAPI,
 			subtype: M2D_EYTAPIErrorSubtypes.WrongURL,
@@ -290,11 +292,11 @@ const M2D_YTAPIUtils = {
 			})
 			.catch((err) => rej(err));
 	}),
-	handleVideoStreamError: (stream: M2D_IYTAPIVideoStream, err: Error) => new Promise<Error | M2D_YTAPIError>((res, rej) => {
+	handleVideoStreamError: (stream: M2D_IYTAPIVideoStream, err: Error) => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMultipleMessages(`error`, [`SID: "${stream.id}" - wystąpił błąd podczas przesyłania danych!`, `Treść błędu: "${err.message}"`])
 			.then(() => {
 				stream.stream.destroy();
-				res(err);
+				res();
 			});
 	}),
 	initYTAPICapabilities: () => new Promise<void>((res, rej) => {
