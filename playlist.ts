@@ -520,7 +520,7 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 									isBeingPlayed = true;
 								} else isBeingPlayed = false;
 							} else isBeingPlayed = false;
-							outputString = outputString.concat(`\n**${data.ids[i]}**\nTytuł: **${data.titles[i]}**\nAutor: **${data.authors[i]}**\nDodane przez: **${data.requestedBys[i]}**\n${(isBeingPlayed) ? "*OBECNIE ODTWARZANY*\n" : ""}\n\n`);
+							outputString = outputString.concat(`\n**${data.ids[i]}**\nTytuł: **${data.titles[i]}**\nAutor: **${data.authors[i]}**\nDodane przez: **${data.requestedBys[i]}**\n${(isBeingPlayed) ? "*OBECNIE ODTWARZANY*\n\n" : ""}\n`);
 						}
 
 						return outputString;

@@ -188,7 +188,7 @@ const M2D_YTAPIUtils = {
 						quality: "lowestaudio",
 						highWaterMark: 1<<25
 					})
-						.then((stream: Readable) => stream)		
+						.then((stream: Readable) => stream)	
 						.catch(() => M2D_LogUtils.logMessage(`error`, `Wystąpił błąd podczas pobierania strumienia audio!`)
 							.then(() => Promise.reject({
 								type: M2D_EErrorTypes.YTAPI,
@@ -208,34 +208,38 @@ const M2D_YTAPIUtils = {
 						};
 						M2D_VIDEO_STREAMS.push(streamData);
 						return streamData;
-					}))
-				.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`info`, [ `Nadano ID odebranemu strumieniowi.`, `ID strumienia: "${streamData.id}"` ])
-					.then(() => {
-						streamData.stream.on("pause", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zapauzowano strumień!`));
-						streamData.stream.on("resume", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - wznowiono strumień!`));
-						streamData.stream.on("close", async () => { 
-							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zamknięto (zniszczono) strumień!`)
-								.then(() => {
-									const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
-
-									M2D_VIDEO_STREAMS.splice(idx, 1);
-								});
-						});
-						streamData.stream.on("end", async () => {
-							M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - strumień dobiegł końca!`)
-								.then(() => {
-									const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
-
-									M2D_VIDEO_STREAMS.splice(idx, 1);
-								});
-						});
-						streamData.stream.on("error", async (err: Error) => M2D_YTAPIUtils.handleVideoStreamError(streamData, err));
-						return streamData;
 					})
+					.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`info`, [ `Nadano ID odebranemu strumieniowi.`, `ID strumienia: "${streamData.id}"` ])
+						.then(() => {
+							streamData.stream.on("pause", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zapauzowano strumień!`));
+							streamData.stream.on("resume", async () => M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - wznowiono strumień!`));
+							streamData.stream.on("close", async () => { 
+								M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - zamknięto (zniszczono) strumień!`)
+									.then(() => {
+										const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
+
+										M2D_VIDEO_STREAMS.splice(idx, 1);
+									});
+							});
+							streamData.stream.on("end", async () => {
+								M2D_LogUtils.logMessage(`info`, `SID: "${streamData.id}" - strumień dobiegł końca!`)
+									.then(() => {
+										const idx = M2D_VIDEO_STREAMS.findIndex((v) => v.id === streamData.id);
+
+										M2D_VIDEO_STREAMS.splice(idx, 1);
+									});
+							});
+							streamData.stream.on("error", async (err: Error) => M2D_GeneralUtils.ignoreError(M2D_YTAPIUtils.handleVideoStreamError(streamData, err)));
+							return streamData;
+						})
+						.catch((err) => Promise.reject(err))
+					)
+					.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`success`, [`SID: "${streamData.id}" - uzyskano końcowe dane!`, `Dane: "${JSON.stringify(streamData)}"`])
+						.then(() => Promise.resolve(streamData))
+					)
+					.catch((err) => Promise.reject(err))
 				)
-				.then((streamData: M2D_IYTAPIVideoStream) => M2D_LogUtils.logMultipleMessages(`success`, [`SID: "${streamData.id}" - uzyskano końcowe dane!`, `Dane: "${JSON.stringify(streamData)}"`])
-					.then(() => res(streamData))
-				)
+				.then((val) => res(val))
 				.catch((err) => {
 					if(M2D_GeneralUtils.getErrorString(err) === "YOUTUBEAPI_VIDEO_STREAM_TIMED_OUT") {
 						return M2D_LogUtils.logMessage(`error`, `Nie udało się uzyskać strumienia wideo o URL "${url}" w czasie ${M2D_YT_VIDEO_STREAM_TIMEOUT} sekund.`)

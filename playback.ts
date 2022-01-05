@@ -107,10 +107,19 @@ const M2D_PlaybackTimer = setInterval(async () => {
 					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(v.guildId, pe.id))
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono utwór.`))
 					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
-			} else {
+			} else if(v.mode === M2D_PlaybackMode.LoopPlaylist) {
 				await M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
 					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
+			} else {
+				await M2D_PlaylistUtils.isPlaylistEnd(v.guildId, v.currentPlaylistEntryId)
+					.then((isEnd) => {
+						if(!isEnd) {
+							return M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
+								.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`));
+						} else return Promise.resolve();
+					})
+					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się sprawdzić czy istnieje i pobrać następnej pozycji na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
 			}
 		}
 		
@@ -390,11 +399,17 @@ const M2D_PlaybackUtils = {
 				} as M2D_IPlaybackAlreadyDownloadingStreamError);
 			})
 			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, entryId)
-				.then((pe) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PbID: "${pB.id}" - uzyskano pozycję na playliście!`)
-					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url))
+				.then((pe) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - uzyskano pozycję na playliście!`)
+					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url)
+						.catch((err) => Promise.reject(err))
+					)
+					.catch((err) => Promise.reject(err))
 				)
-				.then((stream) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PbID: "${pB.id}" - uzyskano strumień wideo!`)
-					.then(() => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream))
+				.then((stream) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - uzyskano strumień wideo!`)
+					.then(() => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream)
+						.catch((err) => Promise.reject(err))
+					)
+					.catch((err) => Promise.reject(err))
 				)
 				.then(() => {
 					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
@@ -404,6 +419,7 @@ const M2D_PlaybackUtils = {
 
 					return pB;
 				})
+				.catch((err) => Promise.reject(err))
 			)
 			.then((pB) => M2D_PlaylistUtils.getCurrentPlaylistEntry(pB.guildId)
 				.then((pE) => M2D_MessagesUtils.getMessage("playbackStarted", [ pE.title, pE.author, pE.id ], pE.thumbnailUrl))
@@ -414,6 +430,7 @@ const M2D_PlaybackUtils = {
 				})
 					.then(() => pB)
 				)
+				.catch((err) => pB)
 			)
 			.then((pB: M2D_IPlayback) => M2D_LogUtils.logMessage(`success`, `GID: "${guildId}" | PbID: "${pB.id}" - pomyślnie odtworzono pozycję "${entryId}" z playlisty!`))
 			.then(() => res())
@@ -430,12 +447,11 @@ const M2D_PlaybackUtils = {
 			.then((pB: M2D_IPlayback) => M2D_PlaylistUtils.getNextEntry(guildId, pB.currentPlaylistEntryId)
 				.catch((err: M2D_PlaylistError) => {
 					if(err.subtype === M2D_EPlaylistErrorSubtypes.EndOfPlaylistReached) {
-						if(pB.mode === M2D_PlaybackMode.LoopPlaylist) return M2D_PlaylistUtils.getFirstEntry(guildId);
-						else res();
+						return M2D_PlaylistUtils.getFirstEntry(guildId);
 					} else return Promise.reject(err);
 				})
 			)
-			.then((pe) => { if(pe !== undefined) M2D_PlaybackUtils.playPlaylistEntry(guildId, pe.id); })
+			.then((pe) => { if(pe !== undefined) return M2D_PlaybackUtils.playPlaylistEntry(guildId, pe.id); })
 			.then(() => res())
 			.catch((err) => rej(err));
 	}),
