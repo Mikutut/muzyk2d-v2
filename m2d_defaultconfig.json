@@ -37,7 +37,7 @@
 	},
 	{
 		"name": "autoDeleteMessageReplies",
-		"value": "true"
+		"value": "false"
 	},
 	{
 		"name": "autoDeleteMessageRepliesTime",
@@ -45,6 +45,6 @@
 	},
 	{
 		"name": "sendMessageOnStartup",
-		"value": "false"
+		"value": "true"
 	}
 ]
