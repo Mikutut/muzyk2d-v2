@@ -9,7 +9,7 @@
 	import { M2D_ClientUtils, M2D_EClientErrorSubtypes, M2D_IClientMissingGuildMemberError, M2D_IClientWrongChannelTypeError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
-	import { M2D_YTAPIUtils } from "./youtubeapi";
+	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils } from "./youtubeapi";
 //#endregion
 
 //#region Types
@@ -33,7 +33,7 @@
 		audioPlayer: AudioPlayer;
 		currentPlaylistEntryId: string;
 		idleStateElapsedTime: number;
-		audioStream: Readable | null;
+		audioStream: M2D_IYTAPIVideoStream | null;
 		isCurrentlyDownloadingStream: boolean;
 	}
 	//#region Error types
@@ -106,7 +106,7 @@ const M2D_PlaybackTimer = setInterval(async () => {
 					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(v.guildId, pe.id))
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono utwór.`))
 					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
-			} else {
+			} else if(v.mode === M2D_PlaybackMode.LoopPlaylist) {
 				await M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
 					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
 					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
@@ -285,7 +285,7 @@ const M2D_PlaybackUtils = {
 				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" | VCID: "${M2D_PLAYBACKS[idx].id}" - nie udało się usunąć subskrypcji odtwarzacza`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
 				.finally(() => {
 					if(M2D_PLAYBACKS[idx].audioStream !== null) { 
-						(M2D_PLAYBACKS[idx].audioStream as Readable).destroy();
+						(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.destroy();
 						M2D_PLAYBACKS[idx].audioStream = null;
 					}
 					M2D_PLAYBACKS.splice(idx, 1);
@@ -341,11 +341,11 @@ const M2D_PlaybackUtils = {
 			}
 		} as M2D_IPlaybackDoesntExistError);
 	}),
-	playAudioOnPlayback: (guildId: string, stream: Readable) => new Promise<void>((res, rej) => {
+	playAudioOnPlayback: (guildId: string, stream: M2D_IYTAPIVideoStream) => new Promise<void>((res, rej) => {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-			const audioResource = createAudioResource(stream, {
+			const audioResource = createAudioResource(stream.stream, {
 				silencePaddingFrames: 5	
 			});
 			M2D_PLAYBACKS[idx].audioPlayer.play(audioResource);
@@ -368,7 +368,7 @@ const M2D_PlaybackUtils = {
 					M2D_PLAYBACKS[idx].isCurrentlyDownloadingStream = true;
 
 					if(M2D_PLAYBACKS[idx].audioStream !== null) {
-						(M2D_PLAYBACKS[idx].audioStream as Readable).destroy();
+						(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.destroy();
 						M2D_PLAYBACKS[idx].audioStream = null;
 					}
 
@@ -419,7 +419,7 @@ const M2D_PlaybackUtils = {
 
 			if(M2D_PLAYBACKS[idx].audioPlayer.stop()) {
 				if(M2D_PLAYBACKS[idx].audioStream !== null) { 
-					(M2D_PLAYBACKS[idx].audioStream as Readable).destroy();
+					(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.destroy();
 					M2D_PLAYBACKS[idx].audioStream = null;
 				}
 				M2D_PLAYBACKS[idx].state = M2D_PlaybackState.ManuallyStopped;

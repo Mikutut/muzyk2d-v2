@@ -24,6 +24,10 @@
 		"value": "7200"
 	},
 	{
+		"name": "YTVideoStreamTimeout",
+		"value": "30"
+	},
+	{
 		"name": "sendMessageDefaultChannel",
 		"value": ""
 	},
@@ -38,5 +42,9 @@
 	{
 		"name": "autoDeleteMessageRepliesTime",
 		"value": "10"
+	},
+	{
+		"name": "sendMessageOnStartup",
+		"value": "false"
 	}
 ]

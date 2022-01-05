@@ -14,6 +14,7 @@
   - [x] Add global config - applies for every guild
   - [x] Add local configs for each guild
   - [x] Add global values' overrides for each guild
+	- [ ] Add commands for config manipulation
 - [x] Implement commands interpreter:
   - [x] Define commands/prefix/alias schema
   - [x] Add utility functions (invoking commands, finding/getting commands/parameters, adding/deleting runtime commands etc.)
@@ -41,7 +42,7 @@
   - [x] Implement bot state awareness (active/idle)
   - [x] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
   - [x] Make "play" command automatically join bot to the voice channel
-- [ ] Implement "help" command
+- [x] Implement "help" command
 - [ ] Implement Rich Presence
 - [ ] Implement status change
 - [x] Add standard exit handler:

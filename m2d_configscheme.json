@@ -42,6 +42,13 @@
 		"overrideOnly": false
 	},
 	{
+		"name": "YTVideoStreamTimeout",
+		"label": "YTStrumieńWideoTimeout",
+		"description": "Ilość czasu (w sekundach), po których Muzyk2D zaniecha próbę uzyskania strumienia wideo, jeśli do tego czasu nie zostanie on uzyskany.",
+		"overridable": false,
+		"overrideOnly": false
+	},
+	{
 		"name": "sendMessageDefaultChannel",
 		"label": "wyślijWiadomośćDomyślnyKanał",
 		"description": "Domyślny kanał, na który Muzyk2D będzie wysyłał wiadomości (nie odpowiedzi)",
@@ -67,6 +74,13 @@
 		"label": "autoUsuńOdpowiedziCzas",
 		"description": "Po jakim czasie (w sekundach) Muzyk2D ma usuwać swoją odpowiedź",
 		"overridable": true,
+		"overrideOnly": false
+	},
+	{
+		"name": "sendMessageOnStartup",
+		"label": "wyślijWiadomośćPrzyWłączeniu",
+		"description": "Czy Muzyk2D ma wysyłać wiadomość przy włączeniu?",
+		"overridable": false,
 		"overrideOnly": false
 	}
 ]

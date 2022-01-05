@@ -6,5 +6,5 @@ node_modules/
 *.bak
 *.log
 m2d_config.json
-res/txt/invite-link.txt
+m2d_lastusedchannels.json
 res/txt/*invite-link.txt

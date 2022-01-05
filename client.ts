@@ -8,6 +8,7 @@
 	import { M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_PlaylistUtils } from "./playlist";
 	import { M2D_PlaybackUtils } from "./playback";
+	import * as fs from "fs/promises";
 //#endregion
 
 //#region Types
@@ -31,7 +32,8 @@
 			MissingGuildMember = "MISSING_GUILD_MEMBER",
 			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS",
 			WrongChannelType = "WRONG_CHANNEL_TYPE",
-			LastUsedChannelNotFound = "LAST_USED_CHANNEL_NOT_FOUND"
+			LastUsedChannelNotFound = "LAST_USED_CHANNEL_NOT_FOUND",
+			Filesystem = "FILESYSTEM"
 		};
 		const enum M2D_EClientMessageInvalidErrorTypes {
 			NotStartingWithPrefix = "MESSAGE_NOT_STARTING_WITH_PREFIX",
@@ -94,7 +96,13 @@
 			data: {
 				guildId: string;
 			}
-		}
+		};
+		interface M2D_IClientFilesystemError extends M2D_IError {
+			data: {
+				errorMessage: string;
+				path: string;
+			}
+		};
 
 		type M2D_ClientError = M2D_IClientDiscordAPIError |
 			M2D_IClientMessageInvalidError |
@@ -105,7 +113,8 @@
 			M2D_IClientMissingGuildMemberError |
 			M2D_IClientInsufficientPermissionsError |
 			M2D_IClientWrongChannelTypeError |
-			M2D_IClientLastUsedChannelNotFoundError;
+			M2D_IClientLastUsedChannelNotFoundError |
+			M2D_IClientFilesystemError;
 	//#endregion
 //#endregion
 
@@ -142,10 +151,19 @@ const M2D_ClientUtils = {
 				.then(() => M2D_LogUtils.initLogCapabilities())
 				.then(() => M2D_CommandUtils.initCommandCapabilities())
 				.then(() => M2D_ConfigUtils.initConfigCapabilities())
+				.then(() => M2D_ClientUtils.initClientCapabilities())
 				.then(() => M2D_VoiceUtils.initVoiceCapabilities())
 				.then(() => M2D_PlaylistUtils.initPlaylistCapabilities())
 				.then(() => M2D_PlaybackUtils.initPlaybackCapabilities())
 				.then(() => M2D_YTAPIUtils.initYTAPICapabilities())
+				.then(() => M2D_GeneralUtils.ignoreError(
+					M2D_ConfigUtils.getConfigValue("sendMessageOnStartup")
+						.then((val: string) => {
+							if(val === "true") {
+								return M2D_GeneralUtils.sendStartupMessage();
+							} else return Promise.resolve();
+						})
+				))
 				.then(() => {
 					M2D_LogUtils.logMessage("success", `Muzyk2D (v${M2D_GeneralUtils.getMuzyk2DVersion()}) - gotowy do działania!`);
 				})
@@ -680,9 +698,38 @@ const M2D_ClientUtils = {
 	getLastUsedChannels: () => [ ...M2D_CLIENT_LAST_USED_CHANNELS ],
 	initClientCapabilities: () => new Promise<void>((res, rej) => {
 		M2D_LogUtils.logMessage(`info`, `Inicjalizowanie możliwości klienta...`)
+			.then(() => M2D_LogUtils.logMessage(`info`, `Wczytywanie ostatnio używanych kanałów z pliku...`))
+			.then(() => fs.readFile("m2d_lastusedchannels.json", { encoding: "utf-8" })
+				.then((data: string) => {
+					M2D_CLIENT_LAST_USED_CHANNELS.push(...JSON.parse(data));
+					return M2D_LogUtils.logMessage(`success`, `Wczytano ostatnio używane kanały z pliku!`);
+				})
+				.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się wczytać ostatnio używanych kanałów z pliku!`, `Treść błędu: "${err.message}"`]))
+			)
 			.then(() => M2D_LogUtils.logMessage(`success`, `Zainicjalizowano możliwości klienta!`)
 				.then(() => res())
-			);	
+			)
+			.catch((err) => rej(err));	
+	}),
+	clientExitHandler: () => new Promise<void>((res, rej) => {
+		M2D_LogUtils.logMessage(`info`, `Wyłączanie klienta...`)
+			.then(() => M2D_LogUtils.logMessage(`info`, `Zapisywanie ostatnio używanych kanałów do pliku...`))
+			.then(() => fs.writeFile("m2d_lastusedchannels.json", JSON.stringify(M2D_CLIENT_LAST_USED_CHANNELS), { encoding: "utf-8" })
+				.catch((err: Error) => M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się zapisać ostatnio używanych kanałów do pliku!`, `Treść błędu: "${err.message}"`])
+					.then(() => Promise.reject({
+						type: M2D_EErrorTypes.Client,
+						subtype: M2D_EClientErrorSubtypes.Filesystem,
+						data: {
+							errorMessage: err.message,
+							path: "m2d_lastusedchannels.json"
+						}
+					} as M2D_IClientFilesystemError))
+				)
+			)
+			.then(() => M2D_LogUtils.logMessage(`success`, `Zapisano ostatnio używane kanały do pliku!`))
+			.then(() => M2D_LogUtils.logMessage(`success`, `Wyłączono klienta!`))
+			.then(() => res())
+			.catch((err) => rej(err))
 	})
 };
 

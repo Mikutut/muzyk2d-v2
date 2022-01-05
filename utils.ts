@@ -1,5 +1,5 @@
 //#region Imports
-	import { version as M2DVersion } from "./package.json";
+	import { version as M2DVersion, author as M2DAuthor } from "./package.json";
 	import { config as dotenvConfig } from "dotenv";
 	import { EmbedField, MessageEmbed, MessageOptions, TextChannel, ThreadChannel } from "discord.js";
 	import { M2D_ConfigUtils, M2D_EConfigErrorSubtypes, M2D_ConfigError } from "./config";
@@ -93,6 +93,7 @@ const M2D_DEV_ALLOWED_USERS: string[] = [];
 
 const M2D_GeneralUtils = {
 	getMuzyk2DVersion: () => M2DVersion,
+	getMuzyk2DAuthor: () => M2DAuthor,
 	getEnvVar: (envVar: string) => new Promise<string>((res, rej) => {
 		if(process.env[`M2D_${envVar}`]) {
 			res(process.env[`M2D_${envVar}`] as string);
@@ -156,6 +157,9 @@ const M2D_GeneralUtils = {
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_YTAPIUtils.YTAPIExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
+			.then(() => M2D_ClientUtils.clientExitHandler()
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_GeneralUtils.generalExitHandler()
@@ -267,6 +271,45 @@ const M2D_GeneralUtils = {
 					.then(() => res());
 			}
 		})
+	}),
+	ignoreError: (promise: Promise<any>) => new Promise<undefined | any>((res, rej) => {
+		promise
+			.then((ret_value: any) => res(ret_value))
+			.catch(() => res(undefined));
+	}),
+	sendStartupMessage: () => new Promise<void>((res, rej) => {
+		let isDevModeEnabled = false;
+
+		M2D_GeneralUtils.ignoreError(
+			M2D_GeneralUtils.isDevModeEnabled()
+		)
+			.then((isDevModeEn: boolean) => { isDevModeEnabled = isDevModeEn; })
+			.then(() => {
+				const promisesToHandle: Promise<any>[] = [];
+				const message: MessageOptions = {
+					embeds: [
+						M2D_GeneralUtils.embedBuilder({
+							type: `info`,
+							title: `Muzyk2D został aktywowany!`,
+							description: `Wszystkie moduły zostały poprawnie zainicjalizowane!\n\n**Wersja**: \`${M2D_GeneralUtils.getMuzyk2DVersion()}\`\nby ${M2D_GeneralUtils.getMuzyk2DAuthor()}${(isDevModeEnabled) ? "\n\n**TRYB DEWELOPERSKI**" : ""}`
+						})
+					]
+				};
+				
+				for(const [i, v] of M2D_ClientUtils.getLastUsedChannels().entries()) {
+					promisesToHandle.push(
+						M2D_GeneralUtils.ignoreError(
+							M2D_ClientUtils.getGuildChannelFromId(v.guildId, v.channelId)
+								.then((ch) => M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, message))
+						)
+					);
+				}
+
+				M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie startowej wiadomości...`, `Wynik tej operacji nie będzie znany.`])
+					.then(() => Promise.all(promisesToHandle)
+						.then(() => res())
+					)
+			});
 	}),
 	initGeneralCapabilities: () => new Promise<void>((res, rej) => {
 		console.log(`Inicjalizowanie ogólnych możliwości...`);

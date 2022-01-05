@@ -4,6 +4,7 @@
 	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes } from "./utils";
 	import { nanoid } from "nanoid";
 	import { M2D_ClientUtils } from "./client";
+	import { M2D_ConfigUtils } from "./config";
 //#endregion
 
 //#region Types
@@ -150,7 +151,9 @@ const M2D_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	playback: {
 		name: "playback",
 		label: "odtwarzanie"
-	},
+	}
+};
+const M2D_HIDDEN_CATEGORIES: Record<string, M2D_ICommandCategory> = {
 	dev: {
 		name: "developer",
 		label: "deweloperskie"
@@ -169,7 +172,7 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "scheduleShutdown",
 		aliases: ["ss"],
-		category: M2D_CATEGORIES.utility,
+		category: M2D_HIDDEN_CATEGORIES.utility,
 		description: "Sends warning message and shuts down bot after s amount of seconds",
 		parameters: [
 			{
@@ -216,7 +219,7 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "sendDevMessage",
 		aliases: ["sdm"],
-		category: M2D_CATEGORIES.utility,
+		category: M2D_HIDDEN_CATEGORIES.utility,
 		description: "Sends developer message",
 		parameters: [
 			{
@@ -272,7 +275,7 @@ const M2D_DEV_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "isDevMode",
 		aliases: ["devmode"],
-		category: M2D_CATEGORIES.dev,
+		category: M2D_HIDDEN_CATEGORIES.dev,
 		description: "Wyświetla status trybu deweloperskiego",
 		parameters: [],
 		active: true,
@@ -329,20 +332,55 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 		isUtilCommand: false,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
 				M2D_CommandUtils.getParameterValue(parameters, "category")
 					.then((val) => M2D_CommandUtils.getCategoryFromNameOrLabel(val)
-						.then((cat) => M2D_CommandUtils.getCommandsByCategory(cat)
-							.then((cmds) => {
-								// TODO: Implement sending message
-								res();
-							})
-							.catch((err: M2D_ICommandsNoCommandsInCategoryError) => rej(err))
-						)
+						.then((cat) => { 
+							return M2D_CommandUtils.getCommandsByCategory(cat)
+								.then((cmds) => {
+									let outputMsg = ``;
+									const promisesToHandle: Promise<any>[] = [];
+
+									for(const cmd of cmds) {
+										promisesToHandle.push(
+											M2D_CommandUtils.buildCommandHelpMessage(cmd)
+												.then((msg) => { outputMsg = outputMsg.concat(msg); })
+												.catch((err) => rej(err))
+										);
+									}
+
+									return Promise.all(promisesToHandle)
+										.then(() => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+												embeds: [
+													M2D_GeneralUtils.embedBuilder({
+														type: "info",
+														title: `Informacje o komendach z kategorii "${cat.label}"`,
+														description: outputMsg
+													})
+												]
+											})
+												.then(() => res())
+												.catch((err) => Promise.reject(err))
+										)
+										.catch((err) => rej(err));
+								})
+								.catch((err: M2D_ICommandsNoCommandsInCategoryError) => rej(err));
+						})
 						.catch((err: M2D_ICommandsMissingCategoryError) => rej(err))
 					)
 					.catch(() => {
-						// TODO: Implement sending message
-						res();
+						M2D_ClientUtils.sendMessageReplyInGuild(message, {
+							embeds: [
+								M2D_GeneralUtils.embedBuilder({
+									type: `error`,
+									title: `Nie podano kategorii!`,
+									description: `Nie podano żadnej kategorii, z której miałyby zostać wyświetlone komendy.\n**Oto lista dostępnych kategorii**:\n\`\`\`${Object.entries(M2D_CATEGORIES).map(([i, v]) => v.label).join(",\n")}\`\`\``
+								})
+							]
+						})
+							.then(() => res())
+							.catch((err) => rej(err));	
 					});
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
@@ -353,25 +391,7 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 			} as M2D_ICommandsMissingSuppParametersError)
 		}),
 		errorHandler: (error, parameters, suppParameters) => new Promise<void>((res, rej) => {
-			const errString = M2D_GeneralUtils.getErrorString(error);
-
-			switch(errString) {
-				case `${M2D_EErrorTypes.Commands}_${M2D_ECommandsErrorSubtypes.MissingCategory}`: 
-				{
-					// TODO: Implement sending message
-					res();
-				}
-				break;
-				case `${M2D_EErrorTypes.Commands}_${M2D_ECommandsErrorSubtypes.NoCommandsInCategory}`: 
-				{
-					// TODO: Implement sending message
-					res();
-				}
-				break;
-				break;
-				default:
-					rej(error);
-			}
+			rej(error);
 		})
 	}
 ];
@@ -501,9 +521,21 @@ const M2D_CommandUtils = {
 			} as M2D_ICommandsInsufficientParametersError)
 		}
 	}),
-	//buildCommandHelpMessage: (command: M2D_ICommand) => new Promise<string>((res, rej) => {
-//
-	//}),
+	buildCommandHelpMessage: (command: M2D_ICommand) => new Promise<string>((res, rej) => {
+		const { name, aliases, category, description, parameters } = command;
+
+		M2D_ConfigUtils.getConfigValue("prefix")
+			.then((prefix: string) => {
+				const aliasesString = (aliases.length > 0) ? `${name}|${aliases.join("|")}` : `${name}`;
+				const paramsString = (parameters.length > 0) ? parameters.map((v) => `[${v.name}${(!v.required) ? "?" : ""}]`).join(" ") : "";
+				const paramsExplanations = (parameters.length > 0) ? `${parameters.map((v) => `\`${v.name}\` (${v.label}) - ${v.description}${(v.required) ? " **WYMAGANY**" : ""}`).join("\n\n")}\n` : `\`-\`\n`;
+
+				const outputMsg = `\`${name}\`\n**Aliasy**: ${(aliases.length > 0) ? aliases.join(", ") : "Brak"}\n**Kategoria**: ${category.label}\n**Opis**: ${description}\n**Użycie**:\n\`${prefix} ${aliasesString} ${paramsString}\`\n${(parameters.length > 0) ? `\n${paramsExplanations}\n` : "\n"}`;
+				
+				res(outputMsg);
+			})
+			.catch((err) => rej(err));
+	}),
 	invokeCommand: (command: M2D_ICommand, parameters: M2D_ICommandParameter[], suppParameters?: M2D_ICommandSuppParameters) => new Promise<void>((res, rej) => {
 		const invokeId: string = nanoid(10);
 		
@@ -581,6 +613,7 @@ const M2D_CommandUtils = {
 	export {
 		M2D_ECommandsErrorSubtypes,
 		M2D_CommandUtils,
-		M2D_CATEGORIES
+		M2D_CATEGORIES,
+		M2D_HIDDEN_CATEGORIES
 	};
 //#endregion

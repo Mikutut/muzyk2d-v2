@@ -7,6 +7,7 @@
 	import { GuildMember } from "discord.js";
 	import { M2D_ClientUtils } from "./client";
 	import { M2D_IPlayback, M2D_PlaybackUtils } from "./playback";
+	import { M2D_ConfigUtils } from "./config";
 //#endregion
 
 //#region Types
@@ -34,7 +35,8 @@
 			NoPlaylist = "NO_PLAYLIST",
 			NoEntry = "NO_ENTRY",
 			EmptyPlaylist = "EMPTY_PLAYLIST",
-			EndOfPlaylistReached = "END_OF_PLAYLIST_REACHED"
+			EndOfPlaylistReached = "END_OF_PLAYLIST_REACHED",
+			MaxPlaylistSizeReached = "MAX_PLAYLIST_SIZE_REACHED"
 		};
 		interface M2D_IPlaylistNoPlaylistError extends M2D_IError {
 			data: {
@@ -57,11 +59,17 @@
 				guildId: string;
 			}
 		};
+		interface M2D_IPlaylistMaxPlaylistSizeReachedError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		}
 
 		type M2D_PlaylistError = M2D_IPlaylistNoPlaylistError |
 			M2D_IPlaylistNoEntryError |
 			M2D_IPlaylistEmptyPlaylistError |
-			M2D_IPlaylistEndOfPlaylistReachedError;
+			M2D_IPlaylistEndOfPlaylistReachedError |
+			M2D_IPlaylistMaxPlaylistSizeReachedError;
 	//#endregion
 //#endregion
 
@@ -115,14 +123,32 @@ const M2D_PlaylistUtils = {
 	addPlaylistEntry: (guildId: string, options: M2D_IPlaylistEntryOptions) => new Promise<M2D_IPlaylistEntry>((res, rej) => {
 		if(!M2D_PlaylistUtils.doesPlaylistExist(guildId)) M2D_PlaylistUtils.createPlaylist(guildId);
 
-		const idx = M2D_PLAYLISTS.findIndex((v) => v.guildId === guildId);
-		const plIdx = nanoid(10);
-		const playlistEntry: M2D_IPlaylistEntry = {
-			id: plIdx,
-			...options
-		};
-		M2D_PLAYLISTS[idx].playlist.push(playlistEntry);
-		res(playlistEntry);
+		M2D_ConfigUtils.getConfigValue("maxPlaylistSize", guildId)
+			.then((val: string) => {
+				const mPS = parseInt(val, 10);
+
+				return M2D_PlaylistUtils.getPlaylist(guildId)
+					.then((pl: M2D_IPlaylistEntry[]) => {
+						if(pl.length < mPS) {
+							const idx = M2D_PLAYLISTS.findIndex((v) => v.guildId === guildId);
+							const plIdx = nanoid(4);
+							const playlistEntry: M2D_IPlaylistEntry = {
+								id: plIdx,
+								...options
+							};
+							M2D_PLAYLISTS[idx].playlist.push(playlistEntry);
+							res(playlistEntry);
+						} else return Promise.reject({
+							type: M2D_EErrorTypes.Playlist,
+							subtype: M2D_EPlaylistErrorSubtypes.MaxPlaylistSizeReached,
+							data: {
+								guildId
+							}
+						} as M2D_IPlaylistMaxPlaylistSizeReachedError);
+					})
+					.catch((err) => Promise.reject(err));
+			})
+			.catch((err) => rej(err))
 	}),
 	deletePlaylistEntry: (guildId: string, entryId: string) => new Promise<void>((res, rej) => {
 		M2D_PlaylistUtils.getPlaylist(guildId)
@@ -544,6 +570,7 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 		M2D_IPlaylistNoEntryError,
 		M2D_IPlaylistEmptyPlaylistError,
 		M2D_IPlaylistEndOfPlaylistReachedError,
+		M2D_IPlaylistMaxPlaylistSizeReachedError,
 		M2D_PlaylistError
 	};
 	export {
