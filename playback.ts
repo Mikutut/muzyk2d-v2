@@ -11,6 +11,7 @@
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
 	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils, M2D_YT_VIDEO_STREAM_TIMEOUT } from "./youtubeapi";
 	import { M2D_MessagesUtils } from "./messages";
+	import { M2D_Events } from "./events";
 //#endregion
 
 //#region Types
@@ -33,7 +34,6 @@
 		mode: M2D_PlaybackMode;
 		audioPlayer: AudioPlayer;
 		currentPlaylistEntryId: string;
-		idleStateElapsedTime: number;
 		audioStream: M2D_IYTAPIVideoStream | null;
 		isCurrentlyDownloadingStream: boolean;
 	}
@@ -99,58 +99,79 @@
 let M2D_InactiveTimeout: number;
 const M2D_PLAYBACKS: M2D_IPlayback[] = [];
 
-const M2D_PlaybackTimer = setInterval(async () => {
-	for(const [i, v] of M2D_PLAYBACKS.entries()) {
-		if(v.state === M2D_PlaybackState.Stopped) {
-			if(v.mode === M2D_PlaybackMode.LoopOne) {
-				await M2D_PlaylistUtils.getEntry(v.guildId, v.currentPlaylistEntryId)
-					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(v.guildId, pe.id))
-					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - zapętlono utwór.`))
-					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
-			} else if(v.mode === M2D_PlaybackMode.LoopPlaylist) {
-				await M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
-					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`))
-					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
+//#region Event handlers
+	M2D_Events.on("playbackVoiceConnectionDisconnected", async (guildId: string) => {
+		await M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - wykryto rozłączenie z kanałem głosowym. Analizowanie sytuacji z odtworzeniem...`)
+			.then(() => M2D_PlaybackUtils.getPlayback(guildId)
+				.then((pB) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - niszczenie odtworzenia...`)
+					.then(() => M2D_PlaybackUtils.destroyPlayback(guildId)
+						.then(() => M2D_LogUtils.logMessage(`success`, `GID: "${guildId}" | PlID: "${pB.id}" - zniszczono odtworzenie!`))
+						.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" | PlID: "${pB.id}" - nie udało się zniszczyć odtworzenia.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
+					)
+				)
+				.catch(() => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - odtworzenie już nie istniało. Analiza zakończona.`))
+			);
+	});
+	M2D_Events.on("playbackVoiceConnectionDestroyed", async (guildId: string) => {
+		await M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - wykryto zniszczenie połączenia z kanałem głosowym. Analizowanie sytuacji z odtworzeniem...`)
+			.then(() => M2D_PlaybackUtils.getPlayback(guildId)
+				.then((pB) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - niszczenie odtworzenia...`)
+					.then(() => M2D_PlaybackUtils.destroyPlayback(guildId)
+						.then(() => M2D_LogUtils.logMessage(`success`, `GID: "${guildId}" | PlID: "${pB.id}" - zniszczono odtworzenie!`))
+						.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" | PlID: "${pB.id}" - nie udało się zniszczyć odtworzenia.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
+					)
+				)
+				.catch(() => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - odtworzenie już nie istniało. Analiza zakończona.`))
+			);
+	});
+	M2D_Events.on("playbackStopped", async (playback: M2D_IPlayback) => {
+			if(playback.mode === M2D_PlaybackMode.LoopOne) {
+				await M2D_PlaylistUtils.getEntry(playback.guildId, playback.currentPlaylistEntryId)
+					.then((pe: M2D_IPlaylistEntry) => M2D_PlaybackUtils.playPlaylistEntry(playback.guildId, pe.id))
+					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - zapętlono utwór.`))
+					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${playback.guildId}" | PlID: "${playback.id}" - nie udało się zapętlić utworu.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
+			} else if(playback.mode === M2D_PlaybackMode.LoopPlaylist) {
+				await M2D_PlaybackUtils.playNextPlaylistEntry(playback.guildId)
+					.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - odtworzono następny utwór na playliście.`))
+					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${playback.guildId}" | PlID: "${playback.id}" - wystąpił błąd podczas odtwarzania następnego utworu na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
 			} else {
-				await M2D_PlaylistUtils.isPlaylistEnd(v.guildId, v.currentPlaylistEntryId)
+				await M2D_PlaylistUtils.isPlaylistEnd(playback.guildId, playback.currentPlaylistEntryId)
 					.then((isEnd) => {
 						if(!isEnd) {
-							return M2D_PlaybackUtils.playNextPlaylistEntry(v.guildId)
-								.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - odtworzono następny utwór na playliście.`));
+							return M2D_PlaybackUtils.playNextPlaylistEntry(playback.guildId)
+								.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - odtworzono następny utwór na playliście.`));
 						} else return Promise.resolve();
 					})
-					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się sprawdzić czy istnieje i pobrać następnej pozycji na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
+					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${playback.guildId}" | PlID: "${playback.id}" - nie udało się sprawdzić czy istnieje i pobrać następnej pozycji na playliście!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
 			}
-		}
-		
-		if(v.state === M2D_PlaybackState.Paused || v.state === M2D_PlaybackState.Stopped || v.state === M2D_PlaybackState.ManuallyStopped) {
-			if(v.idleStateElapsedTime < M2D_InactiveTimeout) {
-				M2D_PLAYBACKS[i].idleStateElapsedTime++;
-			} else {
-				await M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - upłynął dozwolony czas nieaktywności. Niszczenie odtworzenia...`)
-					.then(() => M2D_PlaybackUtils.destroyPlayback(v.guildId))
-					.catch((err: M2D_PlaybackError) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${v.guildId}" | PlID: "${v.id}" - wystąpił błąd podczas niszczenia odtworzenia!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
-			}
-		} else {
-			M2D_PLAYBACKS[i].idleStateElapsedTime = 0;
-		}
+	});
+	M2D_Events.on("playbackIdling", async (playback: M2D_IPlayback) => {
+		const guildId = playback.guildId;
+		const playbackId = playback.id;
 
-		await M2D_VoiceUtils.isVoiceConnectionDisconnected(v.guildId)
-			.then((isDis: boolean) => {
-				if(isDis) {
-					return M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - brak kanału głosowego, do którego dołączono. Niszczenie...`)
-						.then(() => M2D_PlaybackUtils.destroyPlayback(v.guildId)
-						.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zniszczyć odtworzenia`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
-					);
-				}
+		await M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - wykryto przejście do stanu uśpienia. Oczekiwanie na zakończenie timeout'u...`)
+			.then(() => M2D_GeneralUtils.delay(M2D_InactiveTimeout * 1000))
+			.then(() => {
+				if(playback.state === M2D_PlaybackState.ManuallyStopped || playback.state === M2D_PlaybackState.Paused || playback.state === M2D_PlaybackState.Stopped) {
+					return M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - po upłynięciu timeout'u odtworzenie wciąż było w stanie uśpienia. Niszczenie...`)
+						.then(() => M2D_PlaybackUtils.destroyPlayback(playback.guildId)
+							.then(() => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${playbackId}" - zniszczono odtworzenie. Niszczenie połączenia głosowego...`)
+								.then(() => M2D_VoiceUtils.destroyVoiceConnection(guildId)
+									.then(() => M2D_GeneralUtils.ignoreError(
+										M2D_MessagesUtils.getMessage("playbackTimedOut")
+											.then((msg) => M2D_GeneralUtils.ignoreError(
+												M2D_ClientUtils.sendMessageInGuild(guildId, undefined, { embeds: [ msg ] }, true)
+											))	
+									))
+									.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" - nie udało się zniszczyć połączenia`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
+								)
+							)
+							.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" | PlID: "${playbackId}" - nie udało się zniszczyć odtworzenia.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
+						)	
+				} else return M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - odtworzenie wróciło do stanu pracy po upłynięciu lub w trakcie timeout'u.`)
 			})
-			.catch(() => M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | PlID: "${v.id}" - brak kanału głosowego, do którego dołączono. Niszczenie...`)
-				.then(() => M2D_PlaybackUtils.destroyPlayback(v.guildId)
-					.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${v.guildId}" | PlID: "${v.id}" - nie udało się zniszczyć odtworzenia`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
-				)
-			);
-	}
-}, 1000);
+	});
+//#endregion
 
 const M2D_PlaybackUtils = {
 	doesPlaybackExist: (guildId: string) => M2D_PLAYBACKS.find((v) => v.guildId === guildId) !== undefined,
@@ -193,7 +214,6 @@ const M2D_PlaybackUtils = {
 															audioPlayer: aP,
 															audioStream: null,
 															currentPlaylistEntryId: entry.id,
-															idleStateElapsedTime: 0,
 															isCurrentlyDownloadingStream: false
 														};
 														aP.on("stateChange", (oldState, newState) => {
@@ -216,8 +236,13 @@ const M2D_PlaybackUtils = {
 																		playback.state = M2D_PlaybackState.Running;
 																	} else if(newStatusString === "PAUSED" || newStatusString === "AUTO_PAUSED") {
 																		playback.state = M2D_PlaybackState.Paused;
+																		M2D_Events.emit("playbackIdling", playback);
 																	} else if(newStatusString === "IDLE") {
-																		if(playback.state !== M2D_PlaybackState.ManuallyStopped) playback.state = M2D_PlaybackState.Stopped;
+																		if(playback.state !== M2D_PlaybackState.ManuallyStopped) { 
+																			playback.state = M2D_PlaybackState.Stopped;
+																			M2D_Events.emit("playbackStopped", playback);
+																		}
+																		M2D_Events.emit("playbackIdling", playback);
 																	} else {
 																		playback.state = M2D_PlaybackState.Unknown;
 																	}
@@ -313,6 +338,10 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
+			if(M2D_PLAYBACKS[idx].audioStream !== null) {
+				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.pause();
+			}
+
 			if(M2D_PLAYBACKS[idx].audioPlayer.pause(true)) res();
 			else rej({
 				type: M2D_EErrorTypes.Playback,
@@ -333,6 +362,10 @@ const M2D_PlaybackUtils = {
 	unpausePlayback: (guildId: string) => new Promise<void>((res, rej) => {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
+
+			if(M2D_PLAYBACKS[idx].audioStream !== null) {
+				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.resume();
+			}
 
 			if(M2D_PLAYBACKS[idx].audioPlayer.unpause()) res();
 			else rej({
@@ -403,13 +436,19 @@ const M2D_PlaybackUtils = {
 					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url)
 						.catch((err) => Promise.reject(err))
 					)
-					.catch((err) => Promise.reject(err))
+					.catch((err) => { 
+						pB.isCurrentlyDownloadingStream = false;
+						return Promise.reject(err)
+					})
 				)
 				.then((stream) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - uzyskano strumień wideo!`)
 					.then(() => M2D_PlaybackUtils.playAudioOnPlayback(guildId, stream)
 						.catch((err) => Promise.reject(err))
 					)
-					.catch((err) => Promise.reject(err))
+					.catch((err) => { 
+						pB.isCurrentlyDownloadingStream = false;
+						return Promise.reject(err);
+					})
 				)
 				.then(() => {
 					const idx = M2D_PLAYBACKS.findIndex((v) => v.id === pB.id && v.guildId === pB.guildId);
@@ -419,7 +458,10 @@ const M2D_PlaybackUtils = {
 
 					return pB;
 				})
-				.catch((err) => Promise.reject(err))
+				.catch((err) => { 
+					pB.isCurrentlyDownloadingStream = false;
+					return Promise.reject(err);
+				})
 			)
 			.then((pB) => M2D_PlaylistUtils.getCurrentPlaylistEntry(pB.guildId)
 				.then((pE) => M2D_MessagesUtils.getMessage("playbackStarted", [ pE.title, pE.author, pE.id ], pE.thumbnailUrl))

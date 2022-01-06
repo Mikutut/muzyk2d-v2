@@ -88,6 +88,11 @@ const M2D_MESSAGES: M2D_IMessages = {
 		title: `Zapauzowano!`,
 		description: `Pomyślnie **zapauzowano odtwarzanie**!`
 	},
+	"playbackTimedOut": {
+		type: "info",
+		title: `Rozłączono z kanałem głosowym!`,
+		description: `Odtworzenie było zapauzowane/zastopowane przez zbyt długi czas, dlatego też Muzyk2D **opuścił kanał głosowy**.`
+	},
 	"playbackUnpaused": {
 		type: "success",
 		title: `Odpauzowano!`,

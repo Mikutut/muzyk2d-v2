@@ -95,7 +95,8 @@ const M2D_VOICE_CONNECTIONS: M2D_IVoiceConnection[] = [];
       .catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" - analiza sytuacji z liczbą członków na kanale głosowym nie powiodła się.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
   });
   M2D_Events.on("voiceVoiceConnectionDisconnected", async (guildId: string) => {
-    await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guildId}" - wykryto rozłączenie z kanałem`, `Czekanie aż minie timeout...`])
+		M2D_Events.emit("playbackVoiceConnectionDisconnected", guildId);
+		await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guildId}" - wykryto rozłączenie z kanałem`, `Czekanie aż minie timeout...`])
       .then(() => M2D_GeneralUtils.delay(voiceConnectionDisconnectedTimeout * 1000))
       .then(() => M2D_VoiceUtils.isVoiceConnectionDisconnected(guildId)
         .then((val) => {
@@ -345,6 +346,7 @@ const M2D_VoiceUtils = {
 							
 							if(vc) {
 								vc.destroy();
+								M2D_Events.emit("playbackVoiceConnectionDestroyed", guildId);
 								return Promise.resolve();
 							} else return Promise.reject({
 								type: M2D_EErrorTypes.Voice,
