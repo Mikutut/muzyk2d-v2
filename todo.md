@@ -43,7 +43,9 @@
   - [x] Add different playback modes (normal/loop one entry/loop entire playlist etc.)
   - [x] Make "play" command automatically join bot to the voice channel
 - [ ] Improve stability:
-  - [ ] Switch to event-based handlers instead of timer-based
+  - [ ] Switch to event-based handlers instead of timer-based:
+    - [x] Voice actions
+    - [ ] Playback actions
   - [ ] Add action queue'ing
 - [x] Implement "help" command
 - [ ] Implement Rich Presence
