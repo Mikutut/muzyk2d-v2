@@ -216,8 +216,8 @@ const M2D_ClientUtils = {
 				.then(() => M2D_GeneralUtils.exitHandler(2));
 		});
 		M2D_Client.on("voiceStateUpdate", async (oldState: VoiceState, newState: VoiceState) => {
-			if((oldState.member && oldState.member.user !== M2D_Client.user) && (newState.member && newState.member.user !== M2D_Client.user)) {
-				await M2D_VoiceUtils.getVoiceConnection(newState.guild.id)
+			await M2D_GeneralUtils.ignoreError(
+				M2D_VoiceUtils.getVoiceConnection(newState.guild.id)
 				.then((vc: M2D_IVoiceConnection) => M2D_ClientUtils.getGuildChannelFromId(vc.guildId, vc.channelId)
 					.then((ch: GuildBasedChannel) => {
 						if(ch.type === "GUILD_VOICE") {
@@ -239,9 +239,9 @@ const M2D_ClientUtils = {
 							M2D_Events.emit("voiceMembersCountChanged", vc.guildId);
 						}
 					})
+					.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${newState.guild.id}" - nie udało się uzyskać stanu połączenia głosowego!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
 				)
-				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${newState.guild.id}" - nie udało się uzyskać stanu połączenia głosowego!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
-			}
+			);
 		});
 		M2D_Client.on("guildDelete", async (guild: Guild) => {
 			await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guild.id}" - serwer ("${guild.name}") został usunięty albo klient został z niego wyrzucony`, `Usuwanie wszelkich lokalnych zmianek o nim...`])
