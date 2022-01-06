@@ -1,15 +1,16 @@
 //#region Imports
 	import { M2D_ConfigUtils } from "./config";
-	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel, GuildBasedChannel, PermissionFlags, MessageOptions, TextBasedChannel, ThreadChannel } from "discord.js";
+	import { Client, Guild, Channel, GuildMember, User, Intents, Message, TextChannel, DMChannel, GuildBasedChannel, PermissionFlags, MessageOptions, TextBasedChannel, ThreadChannel, VoiceState, VoiceChannel } from "discord.js";
 	import { M2D_LogUtils } from "./log";
-	import { M2D_EErrorTypes, M2D_EGeneralErrorSubtypes, M2D_Error, M2D_GeneralUtils, M2D_IError, M2D_IGeneralDevModeUserNotAllowedError } from "./utils";
+	import { M2D_EErrorTypes, M2D_EGeneralErrorSubtypes, M2D_Error, M2D_GeneralUtils, M2D_IError, M2D_IGeneralDevModeUserNotAllowedError, M2D_IUnknownError } from "./utils";
 	import { M2D_CommandUtils, M2D_ECommandsErrorSubtypes, M2D_ICommand, M2D_ICommandParameter, M2D_ICommandsCommandDeveloperOnlyError, M2D_ICommandsCommandNotActiveError, M2D_ICommandsCommandNotInvokableInChatError, M2D_ICommandsInsufficientParametersError, M2D_ICommandsMissingCommandError, M2D_ICommandSuppParameters } from "./commands";
-	import { M2D_VoiceUtils } from "./voice";
+	import { M2D_IVoiceConnection, M2D_VoiceUtils } from "./voice";
 	import { M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_PlaylistUtils } from "./playlist";
 	import { M2D_PlaybackUtils } from "./playback";
 	import { M2D_MessagesUtils } from "./messages";
 	import * as fs from "fs/promises";
+	import { M2D_Events } from "./events";
 //#endregion
 
 //#region Types
@@ -213,7 +214,49 @@ const M2D_ClientUtils = {
 		M2D_Client.on("invalidated", async () => {
 			await M2D_LogUtils.logMessage(`error`, `Sesja klienta została unieważniona! Przechodzenie do wyłączenia...`)
 				.then(() => M2D_GeneralUtils.exitHandler(2));
-		})
+		});
+		M2D_Client.on("voiceStateUpdate", async (oldState: VoiceState, newState: VoiceState) => {
+			if((oldState.member && oldState.member.user !== M2D_Client.user) && (newState.member && newState.member.user !== M2D_Client.user)) {
+				await M2D_VoiceUtils.getVoiceConnection(newState.guild.id)
+				.then((vc: M2D_IVoiceConnection) => M2D_ClientUtils.getGuildChannelFromId(vc.guildId, vc.channelId)
+					.then((ch: GuildBasedChannel) => {
+						if(ch.type === "GUILD_VOICE") {
+							return ch as VoiceChannel;
+						} else return Promise.reject({
+							type: M2D_EErrorTypes.Client,
+							subtype: M2D_EClientErrorSubtypes.WrongChannelType,
+							data: {
+								guildId: vc.guildId,
+								channelId: vc.channelId,
+								expectedTypes: ["GUILD_VOICE"],
+								receivedType: ch.type
+							}
+						} as M2D_IClientWrongChannelTypeError);
+					})
+					.then((ch: VoiceChannel) => {
+						if(ch.members.size !== vc.channelMembersCount) {
+							vc.channelMembersCount = ch.members.size;
+							M2D_Events.emit("voiceMembersCountChanged", vc.guildId);
+						}
+					})
+				)
+				.catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${newState.guild.id}" - nie udało się uzyskać stanu połączenia głosowego!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]));
+			}
+		});
+		M2D_Client.on("guildDelete", async (guild: Guild) => {
+			await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guild.id}" - serwer ("${guild.name}") został usunięty albo klient został z niego wyrzucony`, `Usuwanie wszelkich lokalnych zmianek o nim...`])
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie wpisów w konfiguracji dla serwera "${guild.id}"...`))
+				// TODO: Implement cleaning up configuration files
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie ostatnio używanych kanałów na serwerze "${guild.id}"...`))
+				// TODO: Implement deleting last used channels
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie zapamiętanych połączeń głosowych na serwerze "${guild.id}"...`))
+				// TODO: Implement deleting voice connections
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odtworzeń na serwerze "${guild.id}"...`))
+				// TODO: Implement deleting playbacks
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie playlisty serwera "${guild.id}"...`))
+				// TODO: Implement deleting playlist
+				.then(() => M2D_LogUtils.logMessage(`info`, `Operacja usuwania wzmianek o serwerze "${guild.name}" ("${guild.id}") powiodła się!`))	
+		});
 	},
 	parseMessage: (messageContent: string, prefix: string) => new Promise<M2D_IClientParsedMessage>((res, rej) => {
 		if(messageContent.startsWith(prefix)) {

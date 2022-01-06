@@ -9,6 +9,7 @@
 	import { M2D_ICommand, M2D_ICommandCategory, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_CATEGORIES, M2D_ICommandsMissingSuppParametersError, M2D_ECommandsErrorSubtypes, M2D_CommandUtils } from "./commands";
 	import { M2D_PlaybackUtils } from "./playback";
 	import { M2D_MessagesUtils } from "./messages";
+	import { M2D_Events } from "./events";
 //#endregion
 
 //#region Types
@@ -19,6 +20,7 @@
 		playerSubscription: PlayerSubscription | null;
 		noVCMembersElapsedTime: number;
 		vcDisconnectedElapsedTime: number;
+    channelMembersCount: number;
 	};
 	//#region Error types
 		const enum M2D_EVoiceErrorSubtypes {
@@ -69,6 +71,36 @@ let noVCMembersTimeout = 60;
 let voiceConnectionDisconnectedTimeout = 60;
 const M2D_VOICE_CONNECTIONS: M2D_IVoiceConnection[] = [];
 
+//#region Event handlers
+  M2D_Events.on("voiceMembersCountChanged", async (guildId: string, membersCount: number) => {
+    await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guildId}" - wykryto zmianę liczby członków na kanale głosowym.`, `Analizowanie...`])
+      .then(() => M2D_VoiceUtils.getVoiceConnection(guildId))
+      .then((vc: M2D_IVoiceConnection) => M2D_ConfigUtils.getConfigValue("minVCMembers", guildId)
+        .then((val) => {
+          const minVCMembers = parseInt(val, 10);
+
+          if((vc.channelMembersCount - 1) < minVCMembers) {
+            return M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - wykryto mniejszą liczbę członków na kanale niż na to pozwala "minVCMembers", czekanie na upłynięcie timeout'u...`)
+              .then(() => M2D_GeneralUtils.delay(noVCMembersTimeout * 1000))
+              .then(() => {
+                if((vc.channelMembersCount - 1) < minVCMembers) {
+                  return M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" - niedopuszczalnie niska liczba członków na kanale utrzymała się przez czas wyznaczony przez timeout. Rozłączanie...`)
+                    .then(() => M2D_VoiceUtils.destroyVoiceConnection(guildId))
+                    .catch(err => Promise.reject(err));
+                }
+              })
+              .catch((err) => Promise.reject(err));
+          }
+        })  
+        .catch((err) => Promise.reject(err))
+      )
+      .catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`GID: "${guildId}" - analiza sytuacji z liczbą członków na kanale głosowym nie powiodła się.`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
+  });
+  /* M2D_Events.on("voiceVoiceConnectionDisconnected", async (guildId: string) => {
+
+  }); */
+//#endregion
+
 const M2D_VoiceTimer = setInterval(async () => {
 	for(const [i, v] of M2D_VOICE_CONNECTIONS.entries()) {
 		M2D_ClientUtils.getGuildFromId(v.guildId)
@@ -94,17 +126,6 @@ const M2D_VoiceTimer = setInterval(async () => {
 											}
 										} else {
 											M2D_VOICE_CONNECTIONS[i].vcDisconnectedElapsedTime = 0;
-											if(((channel as VoiceChannel).members.size - 1) < minVCMembers) {
-												if(v.noVCMembersElapsedTime < noVCMembersTimeout) {
-													M2D_VOICE_CONNECTIONS[i].noVCMembersElapsedTime++;
-												} else {
-													M2D_LogUtils.logMessage(`info`, `GID: "${v.guildId}" | VCID: "${v.id}" - na kanale "${channel.name}" znajduje się mniej użytkowników, niż na to zezwala "minVCMembers" i dozwolony czas już upłynął. Rozłączanie z kanału...`)
-														.then(() => M2D_VoiceUtils.destroyVoiceConnection(v.guildId))
-														.catch(() => {return;});
-												}
-											} else {
-												M2D_VOICE_CONNECTIONS[i].noVCMembersElapsedTime = 0;
-											}
 										}
 									})
 							});
@@ -245,16 +266,33 @@ const M2D_VoiceUtils = {
 																	.then(() => M2D_VoiceUtils.destroyVoiceConnection(guildId))
 																	.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `GID: "${guildId}" | VCID: "${vCID}" - wystąpił błąd podczas niszczenia wadliwego połączenia głosowego!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 															});
-															M2D_VOICE_CONNECTIONS.push({
-																id: vCID,
-																guildId: guild.id,
-																channelId: channel.id,
-																playerSubscription: null,
-																noVCMembersElapsedTime: 0,
-																vcDisconnectedElapsedTime: 0,
-															});
-															M2D_LogUtils.logMessage(`success`, `Pomyślnie nawiązano połączenie z kanałem głosowym "${channel.name}" na serwerze "${guild.name}"!`)
-																.then(() => res());
+                              return M2D_ClientUtils.getGuildChannelFromId(guildId, channelId)
+                                .then((ch: GuildBasedChannel) => {
+                                  if(ch.type === "GUILD_VOICE") return ch as VoiceChannel;
+                                  else return Promise.reject({
+                                    type: M2D_EErrorTypes.Voice,
+                                    subtype: M2D_EVoiceErrorSubtypes.WrongChannelType,
+                                    data: {
+                                      channel: ch,
+                                      expectedType: "GUILD_VOICE",
+                                      receivedType: ch.type
+                                    }
+                                  } as M2D_IVoiceWrongChannelTypeError);
+                                })
+                                .then((ch: VoiceChannel) => {
+                                  M2D_VOICE_CONNECTIONS.push({
+                                    id: vCID,
+                                    guildId: guild.id,
+                                    channelId: channel.id,
+                                    playerSubscription: null,
+                                    noVCMembersElapsedTime: 0,
+                                    vcDisconnectedElapsedTime: 0,
+                                    channelMembersCount: ch.members.size
+                                  });
+                                  return M2D_LogUtils.logMessage(`success`, `Pomyślnie nawiązano połączenie z kanałem głosowym "${channel.name}" na serwerze "${guild.name}"!`)
+                                    .then(() => res());
+                                })
+                                .catch((err) => Promise.reject(err));  
 														});
 												} else M2D_LogUtils.logMultipleMessages(`error`, [`Wystąpił błąd podczas nawiązywania połączenia z kanałem głosowym!`, `Powód: Brakujące uprawnienia`])
 													.then(() => rej({
