@@ -1,5 +1,5 @@
 //#region Imports
-	import { Message, Channel, Guild, User, PartialTextBasedChannel } from "discord.js";
+	import { Message, Channel, Guild, User, PartialTextBasedChannel, GuildMember, TextChannel, Collection } from "discord.js";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes } from "./utils";
 	import { nanoid } from "nanoid";
@@ -298,6 +298,105 @@ const M2D_DEV_COMMANDS: M2D_ICommand[] = [
 					}))
 					.then(() => res())
 					.catch((err) => rej(err));
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "everyone",
+		aliases: ["ee"],
+		category: M2D_HIDDEN_CATEGORIES.dev,
+		description: "@everyone prank",
+		parameters: [
+			{
+				name: "guildId",
+				label: "guildId",
+				description: "Guild ID",
+				required: false
+			},
+			{
+				name: "channelIds",
+				label: "channelIds",
+				description: "Comma-separated channel IDs",
+				required: false
+			}
+		],
+		active: true,
+		developerOnly: true,
+		chatInvokable: true,
+		isUtilCommand: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				M2D_CommandUtils.getParameterValue(parameters, "guildId")
+					.then((guildId) => M2D_CommandUtils.getParameterValue(parameters, "channelIds")
+						.then((channelIds) => {
+							const splitChannelIds = channelIds.split(",");
+							const promisesToHandle: Promise<void>[] = [];
+							
+							for(const chid of splitChannelIds) {
+								promisesToHandle.push(
+									M2D_ClientUtils.sendMessageInGuild(guildId, chid, { content: "@everyone" }, true)
+								);
+							}
+
+							return Promise.allSettled(promisesToHandle)
+								.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
+								.catch((err) => rej(err));
+						})
+						.catch(() => { 
+							const g = (M2D_ClientUtils.getClient()).guilds.cache.get(guildId);
+
+							if(g) {
+								const channels = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
+
+								if(channels.size > 0) {
+									const promisesToHandle: Promise<any>[] = [];
+									
+									for(const ch of channels) {
+										promisesToHandle.push(
+											M2D_ClientUtils.sendMessageInGuild(guildId, ch[1].id, { content: "@everyone" }, true)
+										);
+									}
+
+									return Promise.allSettled(promisesToHandle)
+										.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
+										.catch((err) => rej(err));
+								} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
+							} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
+						})
+					)
+					.catch(() => { 
+						const guilds = (M2D_ClientUtils.getClient()).guilds.cache;
+						const channels: Record<string, Collection<string, TextChannel>> = {};
+						const promisesToHandle: Promise<any>[] = [];
+						
+						guilds.forEach((g) => {
+							channels[g.id] = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
+						});
+
+						for(const [i, v] of Object.entries(channels)) {
+							if(v.size > 0) {
+								for(const ch of v) {
+									promisesToHandle.push(
+										M2D_ClientUtils.sendMessageInGuild(ch[1].guild.id, ch[1].id, { content: "@everyone" }, true)
+									);
+								}
+							}
+						}
+
+						return Promise.allSettled(promisesToHandle)
+							.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" })).then(() => res()))	
+					})
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
 				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
