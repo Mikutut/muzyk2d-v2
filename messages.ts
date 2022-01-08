@@ -88,6 +88,11 @@ const M2D_MESSAGES: M2D_IMessages = {
 		title: `Zapauzowano!`,
 		description: `Pomyślnie **zapauzowano odtwarzanie**!`
 	},
+	"playbackIdling": {
+		type: "info",
+		title: `Brak pracy`,
+		description: `Odtwarzacz przeszedł w stan braku pracy. Jeśli utrzyma się w takim stanie przez %s sekund, zostanie automatycznie opuszczony kanał głosowy.`
+	},
 	"playbackTimedOut": {
 		type: "info",
 		title: `Rozłączono z kanałem głosowym!`,

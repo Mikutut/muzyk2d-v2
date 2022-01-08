@@ -149,6 +149,13 @@ const M2D_PLAYBACKS: M2D_IPlayback[] = [];
 		const guildId = playback.guildId;
 		const playbackId = playback.id;
 
+		M2D_MessagesUtils.getMessage("playbackIdling", [ M2D_InactiveTimeout.toString() ])
+			.then((msg) => M2D_GeneralUtils.ignoreError(
+				M2D_ClientUtils.sendMessageInGuild(playback.guildId, undefined, {
+					embeds: [ msg ]
+				}, true)
+			));
+
 		await M2D_LogUtils.logMessage(`info`, `GID: "${playback.guildId}" | PlID: "${playback.id}" - wykryto przejście do stanu uśpienia. Oczekiwanie na zakończenie timeout'u...`)
 			.then(() => M2D_GeneralUtils.delay(M2D_InactiveTimeout * 1000))
 			.then(() => {
@@ -338,9 +345,9 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-			if(M2D_PLAYBACKS[idx].audioStream !== null) {
+/* 			if(M2D_PLAYBACKS[idx].audioStream !== null) {
 				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.pause();
-			}
+			} */
 
 			if(M2D_PLAYBACKS[idx].audioPlayer.pause(true)) res();
 			else rej({
@@ -363,9 +370,9 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-			if(M2D_PLAYBACKS[idx].audioStream !== null) {
+/* 			if(M2D_PLAYBACKS[idx].audioStream !== null) {
 				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.resume();
-			}
+			} */
 
 			if(M2D_PLAYBACKS[idx].audioPlayer.unpause()) res();
 			else rej({
