@@ -266,7 +266,7 @@ const M2D_ClientUtils = {
 				const params = (fullCommand.match(/(?:[^\s"]+|"[^"]*")+/g) as RegExpMatchArray) as string[];
 				params.shift();
 				
-				const outputParams = params.map((v) => v.replaceAll("\"", ""));
+				const outputParams = (params.map(v => v.replaceAll("\\n", "\n"))).map((v) => v.replaceAll("\\\"", "\""));
 
 				res({
 					fullCommand,
