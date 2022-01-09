@@ -251,7 +251,7 @@ const M2D_GeneralUtils = {
 						rej2();
 					}
 				})
-				.then((ch) => M2D_ClientUtils.sendMessageInGuild(guildId as string, ch.id, devMsg)
+				.then((ch) => M2D_ClientUtils.sendMessageInGuild(guildId as string, ch.id, devMsg, true)
 					.then(() => M2D_LogUtils.logMessage(`success`, `Wiadomość deweloperska została wysłana na kanał "${ch.name}" (${ch.id}) na serwerze o ID "${guildId}"`))
 					.catch((err) => Promise.reject(err))
 				)
@@ -264,7 +264,7 @@ const M2D_GeneralUtils = {
 						const promisesToHandle: Promise<any>[] = [];
 
 						for(const v of M2D_ClientUtils.getLastUsedChannels()) {
-							promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, devMsg));
+							promisesToHandle.push(M2D_ClientUtils.sendMessageInGuild(v.guildId, v.channelId, devMsg, true));
 						}
 						return M2D_LogUtils.logMultipleMessages(`info`, [`Wysyłanie wiadomości deweloperskiej na ostatnio używane kanały tekstowe na wszystkich serwerach...`, `Wynik tej operacji będzie nieznany`])
 							.then(() => Promise.allSettled(promisesToHandle))
