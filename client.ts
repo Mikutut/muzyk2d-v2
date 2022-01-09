@@ -19,6 +19,10 @@
 		keyword: string;
 		parameters: string[];
 	};
+	interface M2D_IClientParsedParameter {
+		position: number;
+		parameter: string;
+	}
 	interface M2D_IClientLastUsedChannel {
 		guildId: string;
 		channelId: string;
@@ -262,11 +266,44 @@ const M2D_ClientUtils = {
 		if(messageContent.startsWith(prefix)) {
 			if(messageContent.length >= `${prefix} `.length) {
 				const fullCommand = messageContent.replace(`${prefix} `, "");
-				const keyword = ((fullCommand.match(/(?:[^\s"]+|"[^"]*")+/g) as RegExpMatchArray) as string[])[0];
-				const params = (fullCommand.match(/(?:[^\s"]+|"[^"]*")+/g) as RegExpMatchArray) as string[];
-				params.shift();
-				
-				const outputParams = (params.map(v => v.replaceAll("\\n", "\n"))).map((v) => v.replaceAll("\\\"", "\""));
+				const paramRegex = /(?:[^\s"]+|"[^"]*")+/g;
+				const markdownRegex = /^md"(.*)"$/g;
+
+				const keyword = ((fullCommand.match(paramRegex) as RegExpMatchArray) as string[])[0];
+				const unparsedParams = (fullCommand.match(paramRegex) as RegExpMatchArray) as string[];
+				unparsedParams.shift();
+
+				const params: M2D_IClientParsedParameter[] = unparsedParams.map((v, i) => { return { position: i, parameter: v }; });
+
+				let outputMarkdownParams: M2D_IClientParsedParameter[] = [];
+				let outputNormalParams: M2D_IClientParsedParameter[] = [];
+
+				for(const v of params) {
+					const isMarkdown = (v.parameter).match(markdownRegex);
+					console.log(isMarkdown);
+					if(isMarkdown) {
+						outputMarkdownParams.push(v);
+					} else {
+						outputNormalParams.push(v);
+					}
+				}
+
+				outputMarkdownParams = outputMarkdownParams
+					.map((v) => { 
+						const exec = markdownRegex.exec(v.parameter);
+						console.log(exec);
+						return { position: v.position, parameter: `\`\`\`md\n${((exec as RegExpExecArray)[1]).replaceAll("\\n", "\n")}\n\`\`\`` }; 
+					});
+
+				outputNormalParams = outputNormalParams.map((v) => { return { position: v.position, parameter: ((v.parameter.replace(/^"/, "")).replace(/"$/, "")).replaceAll("\\n", "\n") } });
+
+				let outputParams: string[] = [];
+
+				if((outputMarkdownParams.concat(outputNormalParams)).length > 0) {
+					outputParams = (outputMarkdownParams.concat(outputNormalParams)
+						.sort((a, b) => a.position - b.position))
+						.map((v) => v.parameter);
+				}
 
 				res({
 					fullCommand,
