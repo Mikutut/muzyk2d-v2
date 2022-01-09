@@ -61,7 +61,7 @@ const M2D_MESSAGES: M2D_IMessages = {
 	"generalScheduleShutdown": {
 		type: "info",
 		title: "Zaplanowano wyłączenie",
-		description: `Za %s sekund nastąpi **planowe wyłączenie Muzyka2D**\n\n**Powód**: "%s"`
+		description: `Za %s sekund nastąpi **planowe wyłączenie Muzyka2D**\n\n**Powód**:\n%s`
 	},
 	"generalStartupMessage": {
 		type: `info`,
@@ -71,7 +71,7 @@ const M2D_MESSAGES: M2D_IMessages = {
 	"generalDevMessage": {
 		type: "info",
 		title: "Wiadomość od dewelopera",
-		description: `Deweloper wysłał następującą wiadomość:\n\n**%s**`
+		description: `Deweloper wysłał następującą wiadomość:\n%s`
 	},
 	"playbackDownloadingStream": {
 		type: "info",
@@ -193,8 +193,7 @@ const M2D_MessagesUtils = {
 			for(const v of replaces) {
 				outStr = outStr.replace(/%s/, v);
 			}
-			M2D_LogUtils.logMultipleMessages(`success`, [`Pomyślnie wypełniono wiadomość-szablon wartościami!`, `Oryginalny tekst: "${str}"`, `Wypełniony tekst: "${outStr}"`])
-				.then(() => res(outStr));
+			res(outStr);
 		}
 	}),
 	getMessage: (key: string, replaces?: string[], thumbnailUrl?: string, imageUrl?: string, fields?: EmbedField[]) => new Promise<MessageEmbed>((res, rej) => {

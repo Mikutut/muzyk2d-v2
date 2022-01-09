@@ -180,6 +180,8 @@ const M2D_ClientUtils = {
 		});
 		M2D_Client.on("messageCreate", async (message: Message) => {
 			try {
+				await M2D_LogUtils.logMultipleMessages(`info`, [`Odebrano nową wiadomość:`, `Treść: "${message.content}"`, `Serwer: "${message.guild?.name}" (${message.guild?.id})`, `Użytkownik: "${message.guild?.members.cache.get(message.author.id)?.nickname}" ("${message.author.tag}")`]);
+
 				const guild = message.guild;
 
 				if(guild) {
@@ -280,7 +282,6 @@ const M2D_ClientUtils = {
 
 				for(const v of params) {
 					const isMarkdown = (v.parameter).match(markdownRegex);
-					console.log(isMarkdown);
 					if(isMarkdown) {
 						outputMarkdownParams.push(v);
 					} else {
@@ -291,7 +292,6 @@ const M2D_ClientUtils = {
 				outputMarkdownParams = outputMarkdownParams
 					.map((v) => { 
 						const exec = markdownRegex.exec(v.parameter);
-						console.log(exec);
 						return { position: v.position, parameter: `\`\`\`md\n${((exec as RegExpExecArray)[1]).replaceAll("\\n", "\n")}\n\`\`\`` }; 
 					});
 
