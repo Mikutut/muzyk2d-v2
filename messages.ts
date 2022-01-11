@@ -78,6 +78,16 @@ const M2D_MESSAGES: M2D_IMessages = {
 		title: `Pobieranie strumienia...`,
 		description: `Muzyk2D rozpoczął proces pobierania strumienia z YouTube.\n\n**W przeciągu %s sekund powinno rozpocząć się odtwarzanie utworu.**`
 	},
+	"playbackStreamDownloadTimedOut": {
+		type: "error",
+		title: `Nie udało się pobrać strumienia!`,
+		description: `Nie udało się pobrać strumienia z YouTube w wyznaczonym czasie.`
+	},
+	"playbackStreamDownloadError": {
+		type: "error",
+		title: `Nie udało się pobrać strumienia!`,
+		description: `Podczas pobierania strumienia z YouTube wystąpił błąd. Spróbuj ponownie.`
+	},
 	"playbackStarted": {
 		type: "success",
 		title: `Rozpoczęto odtwarzanie!`,
@@ -91,12 +101,12 @@ const M2D_MESSAGES: M2D_IMessages = {
 	"playbackIdling": {
 		type: "info",
 		title: `Brak pracy`,
-		description: `Odtwarzacz przeszedł w stan braku pracy. Jeśli utrzyma się w takim stanie przez %s sekund, zostanie automatycznie opuszczony kanał głosowy.`
+		description: `Odtwarzacz przeszedł w stan braku pracy. Jeśli utrzyma się w takim stanie przez %s sekund, odtwarzanie zostanie **zniszczone**.`
 	},
 	"playbackTimedOut": {
 		type: "info",
-		title: `Rozłączono z kanałem głosowym!`,
-		description: `Odtworzenie było zapauzowane/zastopowane przez zbyt długi czas, dlatego też Muzyk2D **opuścił kanał głosowy**.`
+		title: `Odtwarzanie zniszczone!`,
+		description: `Odtworzenie było zapauzowane/zastopowane przez zbyt długi czas, dlatego też zostało ono **zniszczone**. Aby odtworzyć utwór jeszcze raz, skorzystaj z komendy \`odtwórz\`.`
 	},
 	"playbackUnpaused": {
 		type: "success",
@@ -167,6 +177,16 @@ const M2D_MESSAGES: M2D_IMessages = {
 		type: "success",
 		title: "Odłączono!",
 		description: `Pomyślnie odłączono z kanału głosowego!`
+	},
+	"voiceTooFewVCMembersDetected": {
+		type: `info`,
+		title: `Wykryto zbyt niską liczbę członków na kanale!`,
+		description: `W związku z tym, po upływie %s sekund, nastąpi automatyczne rozłączenie z kanału.`
+	},
+	"voiceTooFewVCMembersTimeoutFinished": {
+		type: `info`,
+		title: `Zbyt niska liczba członków na kanale utrzymała się przez zbyt długi czas!`,
+		description: `Nastąpiło automatyczne rozłączenie z kanału.`
 	},
 	"youtubeAPIWrongUrl": {
 		type: "error",

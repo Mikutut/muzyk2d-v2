@@ -180,7 +180,9 @@ const M2D_ClientUtils = {
 		});
 		M2D_Client.on("messageCreate", async (message: Message) => {
 			try {
-				await M2D_LogUtils.logMultipleMessages(`info`, [`Odebrano nową wiadomość:`, `Treść: "${message.content}"`, `Serwer: "${message.guild?.name}" (${message.guild?.id})`, `Użytkownik: "${message.guild?.members.cache.get(message.author.id)?.nickname}" ("${message.author.tag}")`]);
+				if(message.author.id !== M2D_Client.user?.id) {
+					await M2D_LogUtils.logMultipleMessages(`info`, [`Odebrano nową wiadomość:`, `Treść: "${message.content}"`, `Serwer: "${message.guild?.name}" (${message.guild?.id})`, `Użytkownik: "${message.guild?.members.cache.get(message.author.id)?.nickname}" ("${message.author.tag}")`]);
+				}
 
 				const guild = message.guild;
 
