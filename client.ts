@@ -11,6 +11,7 @@
 	import { M2D_MessagesUtils } from "./messages";
 	import * as fs from "fs/promises";
 	import { M2D_Events } from "./events";
+	import { M2D_StatusUtils } from "./status";
 //#endregion
 
 //#region Types
@@ -162,6 +163,7 @@ const M2D_ClientUtils = {
 				.then(() => M2D_PlaylistUtils.initPlaylistCapabilities())
 				.then(() => M2D_PlaybackUtils.initPlaybackCapabilities())
 				.then(() => M2D_YTAPIUtils.initYTAPICapabilities())
+				.then(() => M2D_StatusUtils.initStatusCapabilities())
 				.then(() => M2D_GeneralUtils.ignoreError(
 					M2D_ConfigUtils.getConfigValue("sendMessageOnStartup")
 						.then((val: string) => {
@@ -253,17 +255,32 @@ const M2D_ClientUtils = {
 		});
 		M2D_Client.on("guildDelete", async (guild: Guild) => {
 			await M2D_LogUtils.logMultipleMessages(`info`, [`GID: "${guild.id}" - serwer ("${guild.name}") został usunięty albo klient został z niego wyrzucony`, `Usuwanie wszelkich lokalnych zmianek o nim...`])
-				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie wpisów w konfiguracji dla serwera "${guild.id}"...`))
-				// TODO: Implement cleaning up configuration files
-				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie ostatnio używanych kanałów na serwerze "${guild.id}"...`))
-				// TODO: Implement deleting last used channels
-				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie zapamiętanych połączeń głosowych na serwerze "${guild.id}"...`))
-				// TODO: Implement deleting voice connections
-				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odtworzeń na serwerze "${guild.id}"...`))
-				// TODO: Implement deleting playbacks
-				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie playlisty serwera "${guild.id}"...`))
-				// TODO: Implement deleting playlist
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie wpisów w konfiguracji dla serwera "${guild.id}"...`)
+					.then(() => M2D_ConfigUtils.deleteConfigOverridesOnGuild(guild.id))
+				)
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie ostatnio używanych kanałów na serwerze "${guild.id}"...`)
+					.then(() => M2D_ClientUtils.deleteLastUsedChannelsOnGuild(guild.id))
+				)
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie zapamiętanych połączeń głosowych na serwerze "${guild.id}"...`)
+					.then(() => M2D_GeneralUtils.ignoreError(
+						M2D_VoiceUtils.getVoiceConnection(guild.id)
+							.then(() => M2D_VoiceUtils.destroyVoiceConnection(guild.id))	
+					))
+				)
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odtworzeń na serwerze "${guild.id}"...`)
+					.then(() => M2D_GeneralUtils.ignoreError(
+						M2D_PlaybackUtils.getPlayback(guild.id)
+							.then(() => M2D_PlaybackUtils.destroyPlayback(guild.id))	
+					))
+				)
+				.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie playlisty serwera "${guild.id}"...`)
+					.then(() => M2D_PlaylistUtils.deletePlaylist(guild.id))
+				)
+				.then(() => M2D_LogUtils.logMessage(`info`, `Aktualizowanie listy serwerów w Rich Presence...`)
+          .then(() => M2D_StatusUtils.updateStatusMessage())
+				)
 				.then(() => M2D_LogUtils.logMessage(`info`, `Operacja usuwania wzmianek o serwerze "${guild.name}" ("${guild.id}") powiodła się!`))	
+        .catch((err) => M2D_LogUtils.logMultipleMessages(`error`, [`Nie udało się usunąć w pełni wszystkich zmianek o serwerze "${guild.name}" (${guild.id})`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"`]))
 		});
 	},
 	parseMessage: (messageContent: string, prefix: string) => new Promise<M2D_IClientParsedMessage>((res, rej) => {
@@ -723,6 +740,14 @@ const M2D_ClientUtils = {
 				guildId,
 				channelId
 			});
+		}
+		res();
+	}),
+	deleteLastUsedChannelsOnGuild: (guildId: string) => new Promise<void>((res, rej) => {
+		for(const [i, v] of M2D_CLIENT_LAST_USED_CHANNELS.entries()) {
+			if(v.guildId === guildId) {
+				M2D_CLIENT_LAST_USED_CHANNELS.splice(i, 1);
+			}
 		}
 		res();
 	}),

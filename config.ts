@@ -104,6 +104,19 @@ const M2D_ConfigUtils = {
 	}),
 	isConfigEntryKeyInScheme: (key: string): boolean => M2D_CONFIG_SCHEME.find((v) => v.name === key) !== undefined,
 	isConfigEntryLabelInScheme: (label: string): boolean => M2D_CONFIG_SCHEME.find((v) => v.label === label) !== undefined,
+	deleteConfigOverridesOnGuild: (guildId: string) => new Promise<void>((res, rej) => {
+		const configEntries = M2D_CONFIG.filter((v) => v.guildOverrides.filter((vv) => vv.guildId === guildId).length > 0);
+
+		for(const [i,v] of configEntries.entries()) {
+			for(const [_i,_v] of v.guildOverrides.entries()) {
+				if(_v.guildId === guildId) {
+					v.guildOverrides.splice(_i, 1);
+				}
+			}
+		}
+
+		res();
+	}),
 	getConfigValue: (key: string, guildId: string | null = null, logToConsole = true, logToFile = true) => new Promise<string>((res, rej) => {
 		if(guildId) {
 			M2D_ConfigUtils.getConfigOverrideValue(guildId, key, logToConsole, logToFile)

@@ -11,6 +11,7 @@
 	import { M2D_EPlaybackErrorSubtypes, M2D_PlaybackError, M2D_PlaybackUtils } from "./playback";
 	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_EMessagesErrorSubtypes, M2D_MessagesError, M2D_MessagesUtils } from "./messages";
+	import { M2D_EStatusErrorSubtypes, M2D_StatusError, M2D_StatusUtils } from "./status";
 //#endregion
 
 //#region Types
@@ -34,8 +35,10 @@
 		Playlist = "PLAYLIST",
 		YTAPI = "YOUTUBEAPI",
 		Messages = "MESSAGES",
+		Status = "STATUS",
 		Unknown = "UNKNOWN"
 	};
+
 	type M2D_ErrorSubtypes = "UNKNOWN" |
 		M2D_EGeneralErrorSubtypes |
 		M2D_EConfigErrorSubtypes |
@@ -46,12 +49,15 @@
 		M2D_EPlaylistErrorSubtypes |
 		M2D_EPlaybackErrorSubtypes |
 		M2D_EYTAPIErrorSubtypes |
-		M2D_EMessagesErrorSubtypes;
+		M2D_EMessagesErrorSubtypes |
+		M2D_EStatusErrorSubtypes;
+
 	interface M2D_IError {
 		type: M2D_EErrorTypes;
 		subtype: M2D_ErrorSubtypes;
 		data: Record<string, any>;
 	};
+
 	type M2D_Error = M2D_IUnknownError |
 		M2D_GeneralError |
 		M2D_ConfigError |
@@ -62,7 +68,9 @@
 		M2D_PlaylistError |
 		M2D_PlaybackError |
 		M2D_YTAPIError |
-		M2D_MessagesError;
+		M2D_MessagesError |
+		M2D_StatusError;
+
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
 			NoEnvVariable = "NO_ENV_VARIABLE",
@@ -159,6 +167,9 @@ const M2D_GeneralUtils = {
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_YTAPIUtils.YTAPIExitHandler()
+				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
+			)
+			.then(() => M2D_StatusUtils.statusExitHandler()
 				.catch((err: M2D_Error) => console.error(`"${M2D_GeneralUtils.getErrorString(err)}" - "${JSON.stringify(err.data)}"`))
 			)
 			.then(() => M2D_ClientUtils.clientExitHandler()
