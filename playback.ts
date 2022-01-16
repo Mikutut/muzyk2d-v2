@@ -610,7 +610,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		name: "odtwórz",
 		aliases: ["p"],
 		category: M2D_CATEGORIES.playback,
-		description: "Odtwarza/odpauzowywuje obecną pozycję na playliście",
+		description: "Odtwarza/odpauzowywuje obecną pozycję na playliście. Przy podaniu URL wideo jako parametru automatycznie dodaje pozycję do playlisty.",
 		parameters: [
 			{
 				name: "url",
