@@ -235,7 +235,7 @@ const M2D_PlaybackUtils = {
 														const playback: M2D_IPlayback = {	
 															id: plId,
 															guildId,
-															state: M2D_PlaybackState.Running,
+															state: M2D_PlaybackState.Stopped,
 															mode: M2D_PlaybackMode.Normal,
 															audioPlayer: aP,
 															audioStream: null,
@@ -431,6 +431,12 @@ const M2D_PlaybackUtils = {
 	playPlaylistEntry: (guildId: string, entryId: string) => new Promise<void>((res, rej) => {
 		M2D_PlaybackUtils.getPlayback(guildId)
 			.then((pB) => {
+				return M2D_GeneralUtils.ignoreError(
+					M2D_PlaybackUtils.stopPlayback(guildId)
+				)
+					.then(() => pB);
+			})
+			.then((pB: M2D_IPlayback) => {
 				if(!pB.isCurrentlyDownloadingStream) {
 					return M2D_MessagesUtils.getMessage("playbackDownloadingStream", [ M2D_YT_VIDEO_STREAM_TIMEOUT.toString() ])
 						.then((msg) => M2D_ClientUtils.sendMessageInGuild(guildId, undefined, {
@@ -459,9 +465,7 @@ const M2D_PlaybackUtils = {
 			})
 			.then((pB) => M2D_PlaylistUtils.getEntry(guildId, entryId)
 				.then((pe) => M2D_LogUtils.logMessage(`info`, `GID: "${guildId}" | PlID: "${pB.id}" - uzyskano pozycję na playliście!`)
-					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url)
-						.catch((err) => Promise.reject(err))
-					)
+					.then(() => M2D_YTAPIUtils.getVideoStream(pe.url))
 					.catch((err) => { 
 						pB.isCurrentlyDownloadingStream = false;
 						return Promise.reject(err)
@@ -607,7 +611,14 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		aliases: ["p"],
 		category: M2D_CATEGORIES.playback,
 		description: "Odtwarza/odpauzowywuje obecną pozycję na playliście",
-		parameters: [],
+		parameters: [
+			{
+				name: "url",
+				label: "URL",
+				description: "URL wideo do odtworzenia",
+				required: false
+			}
+		],
 		active: true,
 		developerOnly: false,
 		chatInvokable: true,
@@ -640,6 +651,12 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IClientMissingGuildMemberError)
 					})
+					.then(() => M2D_GeneralUtils.ignoreError(M2D_CommandUtils.getParameterValue(parameters, "url"))
+						.then((url: string) => M2D_CommandUtils.getCommand("dodaj")
+							.then((_cmd: M2D_ICommand) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: url } ], suppParameters))
+							.catch((err) => Promise.reject(err))
+						)
+					)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id)
 						.then((pB: M2D_IPlayback) => pB)
 						.catch(() => M2D_PlaybackUtils.createPlayback(guild.id)
@@ -647,14 +664,14 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							.then((pB: M2D_IPlayback) => pB)
 						)
 					)
-					.then((pB: M2D_IPlayback) => {
+					.then((pB: M2D_IPlayback) => { 
 						if(pB.state === M2D_PlaybackState.Paused) {
 							return M2D_PlaybackUtils.unpausePlayback(guild.id)
-								.then(() => M2D_GeneralUtils.ignoreError(
-									M2D_MessagesUtils.getMessage("playbackUnpaused")
-										.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, { embeds: [ msg ] }))
-								));
-						} else return M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id);
+								.then(() => M2D_MessagesUtils.getMessage("playbackUnpaused"))
+								.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, { embeds: [ msg ] }))	
+						} else if(pB.state !== M2D_PlaybackState.Running) { 
+							return M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id);
+						}
 					})
 					.then(() => res())
 					.catch(err => rej(err));

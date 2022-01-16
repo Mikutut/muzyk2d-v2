@@ -185,6 +185,7 @@ const M2D_YTAPIUtils = {
 							data: {}
 						} as M2D_IYTAPIVideoStreamTimedOut)),
 					ytdl(url, {
+						filter: "audioonly",
 						quality: "lowestaudio",
 						highWaterMark: 1<<25
 					})
