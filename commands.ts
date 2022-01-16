@@ -615,7 +615,7 @@ const M2D_CommandUtils = {
 			} as M2D_ICommandsInsufficientParametersError)
 		}
 	}),
-	buildCommandHelpMessage: (command: M2D_ICommand) => new Promise<string>((res, rej) => {
+	buildCommandHelpMessage: (command: M2D_ICommand, printCategory = false) => new Promise<string>((res, rej) => {
 		const { name, aliases, category, description, parameters } = command;
 
 		M2D_ConfigUtils.getConfigValue("prefix")
@@ -624,7 +624,7 @@ const M2D_CommandUtils = {
 				const paramsString = (parameters.length > 0) ? parameters.map((v) => `[${v.name}${(!v.required) ? "?" : ""}]`).join(" ") : "";
 				const paramsExplanations = (parameters.length > 0) ? `${parameters.map((v) => `\`${v.name}\` (${v.label}) - ${v.description}${(v.required) ? " **WYMAGANY**" : ""}`).join("\n\n")}\n` : `\`-\`\n`;
 
-				const outputMsg = `\`${name}\`\n**Aliasy**: ${(aliases.length > 0) ? aliases.join(", ") : "Brak"}\n**Kategoria**: ${category.label}\n**Opis**: ${description}\n**Użycie**:\n\`${prefix} ${aliasesString} ${paramsString}\`\n${(parameters.length > 0) ? `\n${paramsExplanations}\n` : "\n"}`;
+				const outputMsg = `\`${name}\`\n**Aliasy**: ${(aliases.length > 0) ? aliases.join(", ") : "Brak"}\n${(printCategory) ? `**Kategoria**: ${category.label}\n` : ""}**Opis**: ${description}\n**Użycie**:\n\`${prefix} ${aliasesString} ${paramsString}\`\n${(parameters.length > 0) ? `\n${paramsExplanations}\n` : "\n"}`;
 				
 				res(outputMsg);
 			})
