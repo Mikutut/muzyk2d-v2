@@ -1,6 +1,7 @@
 //#region Imports
 	import { nanoid } from "nanoid";
-	import { Readable } from "stream"
+	import { Readable } from "stream";
+	import { GuildMember } from "discord.js";
 	import { AudioPlayer, AudioPlayerStatus, createAudioPlayer, createAudioResource, PlayerSubscription, getVoiceConnection, AudioPlayerError } from "@discordjs/voice";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
@@ -9,7 +10,7 @@
 	import { M2D_ClientUtils, M2D_EClientErrorSubtypes, M2D_IClientMissingGuildMemberError, M2D_IClientWrongChannelTypeError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
-	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils, M2D_YT_VIDEO_STREAM_TIMEOUT, M2D_EYTAPIErrorSubtypes } from "./youtubeapi";
+	import { M2D_IYTAPIVideoStream, M2D_YTAPIUtils, M2D_YT_VIDEO_STREAM_TIMEOUT, M2D_EYTAPIErrorSubtypes, M2D_IYTAPIVideoMetadata } from "./youtubeapi";
 	import { M2D_MessagesUtils } from "./messages";
 	import { M2D_Events } from "./events";
 //#endregion
@@ -45,8 +46,12 @@
 		const enum M2D_EPlaybackErrorSubtypes {
 			Exists = "EXISTS",
 			DoesntExist = "DOESNT_EXIST",
+			CouldntPlay = "COULDNT_PLAY",
+			AlreadyPlaying = "ALREADY_PLAYING",
 			CouldntPause = "COULDNT_PAUSE",
+			AlreadyPaused = "ALREADY_PAUSED",
 			CouldntUnpause = "COULDNT_UNPAUSE",
+			AlreadyUnpaused = "ALREADY_UNPAUSED",
 			CouldntStop = "COULDNT_STOP",
 			PlayerSubscription = "PLAYER_SUBSCRIPTION",
 			AlreadyDownloadingStream = "ALREADY_DOWNLOADING_STREAM"
@@ -61,16 +66,37 @@
 				guildId: string;
 			}
 		};
+		interface M2D_IPlaybackCouldntPlayError extends M2D_IError {
+			data: {
+				guildId: string;
+				currentState: M2D_PlaybackState;
+			}
+		};
+		interface M2D_IPlaybackAlreadyPlayingError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		};
 		interface M2D_IPlaybackCouldntPauseError extends M2D_IError {
 			data: {
 				guildId: string;
 				currentState: M2D_PlaybackState;
 			}
 		};
+		interface M2D_IPlaybackAlreadyPausedError extends M2D_IError {
+			data: {
+				guildId: string;
+			}
+		};
 		interface M2D_IPlaybackCouldntUnpauseError extends M2D_IError {
 			data: {
 				guildId: string;
 				currentState: M2D_PlaybackState;
+			}
+		};
+		interface M2D_IPlaybackAlreadyUnpausedError extends M2D_IError {
+			data: {
+				guildId: string;
 			}
 		};
 		interface M2D_IPlaybackCouldntStopError extends M2D_IError {
@@ -92,8 +118,12 @@
 
 		type M2D_PlaybackError = M2D_IPlaybackExistsError |
 			M2D_IPlaybackDoesntExistError |
+			M2D_IPlaybackCouldntPlayError |
+			M2D_IPlaybackAlreadyPlayingError |
 			M2D_IPlaybackCouldntPauseError |
+			M2D_IPlaybackAlreadyPausedError |
 			M2D_IPlaybackCouldntUnpauseError |
+			M2D_IPlaybackAlreadyUnpausedError |
 			M2D_IPlaybackCouldntStopError |
 			M2D_IPlaybackPlayerSubscriptionError |
 			M2D_IPlaybackAlreadyDownloadingStreamError;
@@ -364,19 +394,23 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-/* 			if(M2D_PLAYBACKS[idx].audioStream !== null) {
-				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.pause();
-			} */
-
-			if(M2D_PLAYBACKS[idx].audioPlayer.pause(true)) res();
-			else rej({
+			if(M2D_PLAYBACKS[idx].audioPlayer.state.status !== AudioPlayerStatus.Paused && M2D_PLAYBACKS[idx].audioPlayer.state.status !== AudioPlayerStatus.AutoPaused) {
+				if(M2D_PLAYBACKS[idx].audioPlayer.pause(true)) res();
+				else rej({
+					type: M2D_EErrorTypes.Playback,
+					subtype: M2D_EPlaybackErrorSubtypes.CouldntPause,
+					data: {
+						guildId,
+						currentState: M2D_PLAYBACKS[idx].state
+					}
+				} as M2D_IPlaybackCouldntPauseError);
+			} else rej({
 				type: M2D_EErrorTypes.Playback,
-				subtype: M2D_EPlaybackErrorSubtypes.CouldntPause,
+				subtype: M2D_EPlaybackErrorSubtypes.AlreadyPaused,
 				data: {
-					guildId,
-					currentState: M2D_PLAYBACKS[idx].state
+					guildId
 				}
-			} as M2D_IPlaybackCouldntPauseError);
+			} as M2D_IPlaybackAlreadyPausedError);
 		} else rej({
 			type: M2D_EErrorTypes.Playback,
 			subtype: M2D_EPlaybackErrorSubtypes.DoesntExist,
@@ -389,19 +423,23 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-/* 			if(M2D_PLAYBACKS[idx].audioStream !== null) {
-				(M2D_PLAYBACKS[idx].audioStream as M2D_IYTAPIVideoStream).stream.resume();
-			} */
-
-			if(M2D_PLAYBACKS[idx].audioPlayer.unpause()) res();
-			else rej({
+			if(M2D_PLAYBACKS[idx].audioPlayer.state.status === AudioPlayerStatus.Paused) {
+				if(M2D_PLAYBACKS[idx].audioPlayer.unpause()) res();
+				else rej({
+					type: M2D_EErrorTypes.Playback,
+					subtype: M2D_EPlaybackErrorSubtypes.CouldntUnpause,
+					data: {
+						guildId,
+						currentState: M2D_PLAYBACKS[idx].state
+					}
+				} as M2D_IPlaybackCouldntUnpauseError);
+			} else rej({
 				type: M2D_EErrorTypes.Playback,
-				subtype: M2D_EPlaybackErrorSubtypes.CouldntUnpause,
+				subtype: M2D_EPlaybackErrorSubtypes.AlreadyUnpaused,
 				data: {
-					guildId,
-					currentState: M2D_PLAYBACKS[idx].state
+					guildId
 				}
-			} as M2D_IPlaybackCouldntUnpauseError);
+			} as M2D_IPlaybackAlreadyUnpausedError);
 		} else rej({
 			type: M2D_EErrorTypes.Playback,
 			subtype: M2D_EPlaybackErrorSubtypes.DoesntExist,
@@ -414,12 +452,23 @@ const M2D_PlaybackUtils = {
 		if(M2D_PlaybackUtils.doesPlaybackExist(guildId)) {
 			const idx = M2D_PLAYBACKS.findIndex((v) => v.guildId === guildId);
 
-			const audioResource = createAudioResource(stream.stream, {
-				silencePaddingFrames: 5	
-			});
-			M2D_PLAYBACKS[idx].audioPlayer.play(audioResource);
-			M2D_PLAYBACKS[idx].audioStream = stream;
-			res();
+			try {
+				const audioResource = createAudioResource(stream.stream, {
+					silencePaddingFrames: 5	
+				});
+				M2D_PLAYBACKS[idx].audioPlayer.play(audioResource);
+				M2D_PLAYBACKS[idx].audioStream = stream;
+				res();
+			} catch(err) {
+				rej({
+					type: M2D_EErrorTypes.Playback,
+					subtype: M2D_EPlaybackErrorSubtypes.CouldntPlay,
+					data: {
+						guildId,
+						currentState: M2D_PLAYBACKS[idx].state
+					}
+				} as M2D_IPlaybackCouldntPlayError);
+			}
 		} else rej({
 			type: M2D_EErrorTypes.Playback,
 			subtype: M2D_EPlaybackErrorSubtypes.DoesntExist,
@@ -651,32 +700,66 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IClientMissingGuildMemberError)
 					})
-					.then(() => M2D_GeneralUtils.ignoreError(
-						M2D_CommandUtils.getParameterValue(parameters, "url")
-							.then((url: string) => M2D_CommandUtils.getCommand("dodaj")
-								.then((_cmd: M2D_ICommand) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: url } ], suppParameters))
-								.catch((err) => rej(err))
+					.then(() => M2D_CommandUtils.getParameterValue(parameters, "url")
+						.catch((err) => Promise.reject(err))
+						.then((url: string) => M2D_YTAPIUtils.parseUrl(url)
+							.then((videoId: string) => M2D_YTAPIUtils.getVideoMetadata(videoId))
+							.then((metadata: M2D_IYTAPIVideoMetadata) => M2D_PlaylistUtils.addPlaylistEntry(guild.id, {
+								url,
+								...metadata,
+								requestedBy: ((message.member as GuildMember).nickname) ? `${(message.member as GuildMember).nickname} (${user.tag})` : `${user.tag}`
+							}))
+							.then((pe: M2D_IPlaylistEntry) => M2D_MessagesUtils.getMessage("playlistAddedEntry", [ pe.id ], pe.thumbnailUrl, undefined, [
+								{ name: "Tytuł", value: pe.title, inline: true },
+								{ name: "Autor", value: pe.author, inline: true },
+								{	name: "Dodano przez", value: pe.requestedBy, inline: true }
+							])
+								.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+									embeds: [
+										msg
+									]
+								})
+									.then(() => pe)
+								)
+								.then((pe: M2D_IPlaylistEntry) => {
+									return M2D_PlaybackUtils.getPlayback(guild.id)
+										.then((pB: M2D_IPlayback) => pB)
+										.catch(() => M2D_PlaybackUtils.createPlayback(guild.id)
+											.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
+											.then((pB: M2D_IPlayback) => pB)
+											.catch((err) => Promise.reject(err))
+										)
+										.then((pB: M2D_IPlayback) => M2D_PlaybackUtils.playPlaylistEntry(guild.id, pe.id))
+								})
+								.catch(err => rej(err))
 							)
 						)
 					)
-					.then(() => M2D_PlaybackUtils.getPlayback(guild.id)
+					.catch(() => M2D_PlaybackUtils.getPlayback(guild.id)
 						.then((pB: M2D_IPlayback) => pB)
 						.catch(() => M2D_PlaybackUtils.createPlayback(guild.id)
 							.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 							.then((pB: M2D_IPlayback) => pB)
+							.catch((err) => Promise.reject(err))
 						)
+						.then((pB: M2D_IPlayback) => { 
+							if(pB.state === M2D_PlaybackState.Paused) {
+								return M2D_PlaybackUtils.unpausePlayback(guild.id)
+									.then(() => M2D_MessagesUtils.getMessage("playbackUnpaused"))
+									.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, { embeds: [ msg ] }))	
+							} else if(pB.state !== M2D_PlaybackState.Running) { 
+								return M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id);
+							} else rej({
+								type: M2D_EErrorTypes.Playback,
+								subtype: M2D_EPlaybackErrorSubtypes.AlreadyPlaying,
+								data: {
+									guildId: guild.id
+								}
+							} as M2D_IPlaybackAlreadyPlayingError);
+						})
 					)
-					.then((pB: M2D_IPlayback) => { 
-						if(pB.state === M2D_PlaybackState.Paused) {
-							return M2D_PlaybackUtils.unpausePlayback(guild.id)
-								.then(() => M2D_MessagesUtils.getMessage("playbackUnpaused"))
-								.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, { embeds: [ msg ] }))	
-						} else if(pB.state !== M2D_PlaybackState.Running) { 
-							return M2D_PlaybackUtils.playCurrentPlaylistEntry(guild.id);
-						}
-					})
 					.then(() => res())
-					.catch(err => rej(err));
+					.catch(err => rej(err))
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
 				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
@@ -904,8 +987,12 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		M2D_IPlayback,
 		M2D_IPlaybackExistsError,
 		M2D_IPlaybackDoesntExistError,
+		M2D_IPlaybackCouldntPlayError,
+		M2D_IPlaybackAlreadyPlayingError,
 		M2D_IPlaybackCouldntPauseError,
+		M2D_IPlaybackAlreadyPausedError,
 		M2D_IPlaybackCouldntUnpauseError,
+		M2D_IPlaybackAlreadyUnpausedError,
 		M2D_IPlaybackCouldntStopError,
 		M2D_IPlaybackPlayerSubscriptionError,
 		M2D_IPlaybackAlreadyDownloadingStreamError,
