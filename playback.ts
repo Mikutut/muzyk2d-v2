@@ -651,10 +651,12 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IClientMissingGuildMemberError)
 					})
-					.then(() => M2D_GeneralUtils.ignoreError(M2D_CommandUtils.getParameterValue(parameters, "url"))
-						.then((url: string) => M2D_CommandUtils.getCommand("dodaj")
-							.then((_cmd: M2D_ICommand) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: url } ], suppParameters))
-							.catch((err) => Promise.reject(err))
+					.then(() => M2D_GeneralUtils.ignoreError(
+						M2D_CommandUtils.getParameterValue(parameters, "url")
+							.then((url: string) => M2D_CommandUtils.getCommand("dodaj")
+								.then((_cmd: M2D_ICommand) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: url } ], suppParameters))
+								.catch((err) => rej(err))
+							)
 						)
 					)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id)
@@ -859,6 +861,40 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 		}),
 		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			rej(error);
+		})
+	},
+	{
+		name: "kingassripper",
+		aliases: ["kap"],
+		parameters: [],
+		description: "King Ass Ripper",
+		category: M2D_CATEGORIES.playlist,
+		isUtilCommand: false,
+		chatInvokable: true,
+		developerOnly: false,
+		active: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+				const kingassripperURL = "https://www.youtube.com/watch?v=5MelGCO8Gkk";
+
+				return M2D_CommandUtils.getCommand("odtwórz")
+					.then((_cmd) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: kingassripperURL } ], suppParameters))
+					.then(() => res())
+					.catch((err) => rej(err));	
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			switch(M2D_GeneralUtils.getErrorString(error)) {
+				default:
+					rej(error);
+			}
 		})
 	}
 ];

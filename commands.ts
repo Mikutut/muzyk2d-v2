@@ -596,11 +596,13 @@ const M2D_CommandUtils = {
 			const outputParams: M2D_ICommandParameter[] = [];
 
 			if(paramsCount >= cmdRequiredParamsCount && paramsCount <= cmdParamsCount) {
-				for(let i = 0; i < paramsCount; i++) {
-					outputParams.push({
-						name: command.parameters[i].name,
-						value: params[i]
-					});
+				if(paramsCount > 0) {
+					for(let i = 0; i < paramsCount; i++) {
+						outputParams.push({
+							name: command.parameters[i].name,
+							value: params[i]
+						});
+					}
 				}
 				res(outputParams);
 			} else rej({
