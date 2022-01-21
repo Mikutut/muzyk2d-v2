@@ -444,7 +444,7 @@ const M2D_COMMANDS: M2D_ICommand[] = [
 
 									for(const cmd of cmds) {
 										promisesToHandle.push(
-											M2D_CommandUtils.buildCommandHelpMessage(cmd)
+											M2D_CommandUtils.buildCommandHelpMessage(cmd, guild.id)
 												.then((msg) => { outputMsg = outputMsg.concat(msg); })
 												.catch((err) => rej(err))
 										);
@@ -617,10 +617,10 @@ const M2D_CommandUtils = {
 			} as M2D_ICommandsInsufficientParametersError)
 		}
 	}),
-	buildCommandHelpMessage: (command: M2D_ICommand, printCategory = false) => new Promise<string>((res, rej) => {
+	buildCommandHelpMessage: (command: M2D_ICommand, guildId: string | null = null, printCategory = false) => new Promise<string>((res, rej) => {
 		const { name, aliases, category, description, parameters } = command;
 
-		M2D_ConfigUtils.getConfigValue("prefix")
+		M2D_ConfigUtils.getConfigValue("prefix", guildId)
 			.then((prefix: string) => {
 				const aliasesString = (aliases.length > 0) ? `${name}|${aliases.join("|")}` : `${name}`;
 				const paramsString = (parameters.length > 0) ? parameters.map((v) => `[${v.name}${(!v.required) ? "?" : ""}]`).join(" ") : "";
