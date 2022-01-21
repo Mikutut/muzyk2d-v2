@@ -58,6 +58,46 @@ const M2D_MESSAGES: M2D_IMessages = {
 		title: `Muzyk2D - status`,
 		description: `**Połączenie z kanałem głosowym**:\n**Status**:%s\n**Nazwa kanału**:%s\n\n**Playlista**:\n**Status**:%s\n**Wielkość**:%s\n**Obecna pozycja**:%s\n\n**Odtwarzanie**:\n**Status**:%s\n**Tryb odtwarzania**:%s\n\n**Ogólne**:\n**Wersja**:%s`
 	},
+	"configKeyNotFound": {
+		type: `error`,
+		title: `Nie znaleziono klucza konfiguracji!`,
+		description: `Nie znaleziono \`%s\` na liście kluczy konfiguracji!`
+	},
+	"configKeyNotOverridable": {
+		type: `error`,
+		title: `Podany klucz konfiguracji nie jest modyfikowalny`,
+		description: `\`%s\` jest kluczem konfiguracji, którego **nie można modyfikować na poziomie serwerowym**!`
+	},
+	"configKeyOverriden": {
+		type: `success`,
+		title: `Pomyślnie zmieniono wartość klucza konfiguracji!`,
+		description: `Pomyślnie **zmieniono wartość klucza** \`%s\` na \`%s\`!`
+	},
+	"configKeyOverrideDeleted": {
+		type: `success`,
+		title: `Przywrócono klucz konfiguracji do wartości domyślnej!`,
+		description: `Pomyślnie **przywrócono klucz konfiguracji** \`%s\` **do wartości domyślnej**!`
+	},
+	"configKeyPrint": {
+		type: `info`,
+		title: `Informacje o kluczu konfiguracji`,
+		description: `**Nazwa**: \`%s\`\n**Wartość**: \`%s\``
+	},
+	"configOverridableKeys": {
+		type: `info`,
+		title: `Modyfikowalne klucze konfiguracji`,
+		description: `**Lista modyfikowalnych kluczy konfiguracji**:\n\n%s`
+	},
+	"configOverrides": {
+		type: `info`,
+		title: `Konfiguracja dla serwera **%s**`,
+		description: `%s`
+	},
+	"configPrint": {
+		type: `info`,
+		title: `Konfiguracja`,
+		description: `%s`
+	},
 	"generalScheduleShutdown": {
 		type: "info",
 		title: "Zaplanowano wyłączenie",
@@ -131,7 +171,7 @@ const M2D_MESSAGES: M2D_IMessages = {
 	"playlistAddedEntry": {
 		type: "success",
 		title: "Dodano wpis do playlisty!",
-		description: `Pomyślnie **dodano nowy wpis do playlisty**!\n\n**ID wpisu**: \`%s\``
+		description: `Pomyślnie **dodano nowy wpis do playlisty**!`
 	},
 	"playlistDeletedEntry": {
 		type: "success",

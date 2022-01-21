@@ -341,10 +341,11 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 								...metadata,
 								requestedBy: ((message.member as GuildMember).nickname) ? `${(message.member as GuildMember).nickname} (${user.tag})` : `${user.tag}`
 							}))
-							.then((pe: M2D_IPlaylistEntry) => M2D_MessagesUtils.getMessage("playlistAddedEntry", [ pe.id ], pe.thumbnailUrl, undefined, [
-								{ name: "Tytuł", value: pe.title, inline: true },
-								{ name: "Autor", value: pe.author, inline: true },
-								{	name: "Dodano przez", value: pe.requestedBy, inline: true }
+							.then((pe: M2D_IPlaylistEntry) => M2D_MessagesUtils.getMessage("playlistAddedEntry", undefined, pe.thumbnailUrl, undefined, [
+								{ name: "ID wpisu", value: `\`${pe.id}\``, inline: false },
+								{ name: "Tytuł", value: `\`${pe.title}\``, inline: false },
+								{ name: "Autor", value: `\`${pe.author}\``, inline: false },
+								{	name: "Dodano przez", value: `\`${pe.requestedBy}\``, inline: false }
 							]))
 							.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
 								embeds: [
