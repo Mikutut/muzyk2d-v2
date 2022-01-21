@@ -2,8 +2,8 @@
 	import { nanoid } from "nanoid";
 	import { M2D_EErrorTypes, M2D_Error, M2D_GeneralUtils, M2D_IError, M2D_IEmbedOptions, M2D_EmbedType } from "./utils";
 	import { VoiceConnection, AudioPlayer, AudioResource, joinVoiceChannel, DiscordGatewayAdapterCreator, VoiceConnectionState, VoiceConnectionStatus, PlayerSubscription, getVoiceConnection } from "@discordjs/voice";
-	import { Guild, GuildBasedChannel, GuildMember, VoiceBasedChannel, VoiceChannel } from "discord.js";
-	import { M2D_IClientMissingGuildError, M2D_IClientMissingChannelError, M2D_EClientErrorSubtypes, M2D_ClientUtils, M2D_IClientMissingGuildChannelError, M2D_IClientInsufficientPermissionsError } from "./client";
+	import { Guild, GuildBasedChannel, GuildMember, User, VoiceBasedChannel, VoiceChannel } from "discord.js";
+	import { M2D_IClientMissingGuildError, M2D_IClientMissingChannelError, M2D_EClientErrorSubtypes, M2D_ClientUtils, M2D_IClientMissingGuildChannelError, M2D_IClientInsufficientPermissionsError, M2D_IClientMissingGuildMemberError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_LogUtils } from "./log";
 	import { M2D_ICommand, M2D_ICommandCategory, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_CATEGORIES, M2D_ICommandsMissingSuppParametersError, M2D_ECommandsErrorSubtypes, M2D_CommandUtils } from "./commands";
@@ -34,7 +34,8 @@
 			Disconnected = "DISCONNECTED",
 			Destroyed = "DESTROYED",
 			WrongChannelType = "WRONG_CHANNEL_TYPE",
-			UserNotConnectedToVoiceChannel = "USER_NOT_CONNECTED_TO_VOICE_CHANNEL"
+			UserNotConnectedToVoiceChannel = "USER_NOT_CONNECTED_TO_VOICE_CHANNEL",
+			UserNotInTheSameVoiceChannel = "USER_NOT_IN_THE_SAME_VOICE_CHANNEL"
 		};
 		interface M2D_IVoiceConnectedError extends M2D_IError {
 			data: {
@@ -65,11 +66,19 @@
 				userId: string;
 			}
 		};
+		interface M2D_IVoiceUserNotInTheSameVoiceChannelError extends M2D_IError {
+			data: {
+				guildId: string;
+				channelId: string;
+				userId: string;
+			}
+		};
 		type M2D_VoiceError = M2D_IVoiceConnectedError |
 			M2D_IVoiceDisconnectedError |		
 			M2D_IVoiceDestroyedError |
 			M2D_IVoiceWrongChannelTypeError |
-			M2D_IVoiceUserNotConnectedToVoiceChannelError;
+			M2D_IVoiceUserNotConnectedToVoiceChannelError |
+			M2D_IVoiceUserNotInTheSameVoiceChannelError;
 	//#endregion
 //#endregion
 
@@ -208,6 +217,25 @@ const M2D_VoiceUtils = {
 				guildId
 			}
 		} as M2D_IVoiceDestroyedError);
+	}),
+	isUserConnectedToTheSameVoiceChannel: (guildId: string, user: User) => new Promise<boolean>((res, rej) => {
+		M2D_VoiceUtils.getVoiceConnection(guildId)
+			.then((vc) => M2D_ClientUtils.getGuildMemberFromId(guildId, user.id)
+				.then((gm) => M2D_ClientUtils.getGuildFromId(guildId)
+					.then((g) => {
+						const c_GM = g.me;
+
+						if(c_GM) {
+							res(gm.voice.channelId === vc.channelId);
+						} else return Promise.reject({
+							type: M2D_EErrorTypes.Client,
+							subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
+							data: { guildId, userId: user.id }
+						} as M2D_IClientMissingGuildMemberError);
+					})
+				)
+			)
+			.catch((err) => rej(err));
 	}),
 	getVoiceConnection: (guildId: string) => new Promise<M2D_IVoiceConnection>((res, rej) => {
 		M2D_VoiceUtils.isVoiceConnectionDisconnected(guildId)
@@ -607,7 +635,22 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 				M2D_VoiceUtils.isVoiceConnectionDisconnected(guild.id)
 					.then((isDis) => {
 						if(!isDis) {
-							return M2D_VoiceUtils.destroyVoiceConnection(guild.id);
+							return M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+								.then((val) => {
+									if(val) {
+										return Promise.resolve();
+									} else return Promise.reject({
+										type: M2D_EErrorTypes.Voice,
+										subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+										data: {
+											guildId: guild.id,
+											channelId: guild.me?.voice.channelId,
+											userId: user.id
+										}
+									} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+								})
+								.then(() => M2D_VoiceUtils.destroyVoiceConnection(guild.id))
+								.catch((err) => Promise.reject(err));
 						} else return Promise.reject({
 							type: M2D_EErrorTypes.Voice,
 							subtype: M2D_EVoiceErrorSubtypes.Disconnected,
@@ -655,6 +698,7 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 		M2D_IVoiceConnectedError,
 		M2D_IVoiceDestroyedError,
 		M2D_IVoiceUserNotConnectedToVoiceChannelError,
+		M2D_IVoiceUserNotInTheSameVoiceChannelError,
 		M2D_VoiceError
 	};
 	export {

@@ -6,7 +6,7 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_EPlaylistErrorSubtypes, M2D_IPlaylistEmptyPlaylistError, M2D_IPlaylistEntry, M2D_PlaylistError, M2D_PlaylistUtils } from "./playlist";
 	import { M2D_GeneralUtils, M2D_Error, M2D_IError, M2D_EErrorTypes } from "./utils";
-	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceDestroyedError, M2D_VoiceUtils, M2D_IVoiceConnection, M2D_IVoiceUserNotConnectedToVoiceChannelError } from "./voice";
+	import { M2D_EVoiceErrorSubtypes, M2D_IVoiceDestroyedError, M2D_VoiceUtils, M2D_IVoiceConnection, M2D_IVoiceUserNotConnectedToVoiceChannelError, M2D_IVoiceUserNotInTheSameVoiceChannelError } from "./voice";
 	import { M2D_ClientUtils, M2D_EClientErrorSubtypes, M2D_IClientMissingGuildMemberError, M2D_IClientWrongChannelTypeError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_ICommand, M2D_CATEGORIES, M2D_ICommandParameter, M2D_ICommandParameterDesc, M2D_ICommandSuppParameters, M2D_ECommandsErrorSubtypes, M2D_ICommandsMissingSuppParametersError, M2D_ICommandsMissingParameterError, M2D_CommandUtils } from "./commands";
@@ -700,6 +700,40 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IClientMissingGuildMemberError)
 					})
+					.then(() => new Promise<void>((res2, rej2) => {
+						const u_GM = guild.members.cache.find((v) => v.user === user);
+						const c_GM = guild.me;
+
+						if(u_GM) {
+							if(c_GM) {
+								if(u_GM.voice.channel === c_GM.voice.channel) {
+									res2();
+								} else rej({
+									type: M2D_EErrorTypes.Playback,
+									subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+									data: {
+										guildId: guild.id,
+										channelId: c_GM.voice.channel?.id,
+										userId: user.id
+									}
+								} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+							} else rej({
+							type: M2D_EErrorTypes.Client,
+							subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
+							data: {
+								guildId: guild.id,
+								userId: M2D_ClientUtils.getClient().user?.id
+							}
+						} as M2D_IClientMissingGuildMemberError)
+						} else rej({
+							type: M2D_EErrorTypes.Client,
+							subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
+							data: {
+								guildId: guild.id,
+								userId: user.id
+							}
+						} as M2D_IClientMissingGuildMemberError)
+					}))
 					.then(() => M2D_CommandUtils.getParameterValue(parameters, "url")
 						.catch((err) => Promise.reject(err))
 						.then((url: string) => M2D_YTAPIUtils.parseUrl(url)
@@ -810,6 +844,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
+					.then(() => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((val) => {
+							if(val) {
+								return Promise.resolve();
+							} else return Promise.reject({
+								type: M2D_EErrorTypes.Voice,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channelId,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+					)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 					.then(() => M2D_PlaybackUtils.pausePlayback(guild.id))
 					.then(() => M2D_MessagesUtils.getMessage("playbackPaused"))
@@ -847,6 +896,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
+					.then(() => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((val) => {
+							if(val) {
+								return Promise.resolve();
+							} else return Promise.reject({
+								type: M2D_EErrorTypes.Voice,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channelId,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+					)
 					.then(() => M2D_PlaybackUtils.getPlayback(guild.id))
 					.then(() => M2D_PlaybackUtils.stopPlayback(guild.id))
 					.then(() => M2D_MessagesUtils.getMessage("playbackStopped"))
@@ -884,6 +948,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_VoiceUtils.getVoiceConnection(guild.id)
+					.then(() => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((val) => {
+							if(val) {
+								return Promise.resolve();
+							} else return Promise.reject({
+								type: M2D_EErrorTypes.Voice,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channelId,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+					)
 					.then(() => M2D_PlaybackUtils.playNextPlaylistEntry(guild.id))			
 					.then(() => M2D_MessagesUtils.getMessage("playbackSongSkipped"))
 					.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
@@ -920,6 +999,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				const { message, guild, channel, user } = suppParameters;
 
 				M2D_PlaybackUtils.getPlayback(guild.id)
+					.then((pb) => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((val) => {
+							if(val) {
+								return Promise.resolve(pb);
+							} else return Promise.reject({
+								type: M2D_EErrorTypes.Voice,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channelId,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+					)
 					.then((pb) => M2D_PlaybackUtils.changePlaybackMode(guild.id, 
 						(pb.mode === M2D_PlaybackMode.Normal) ? M2D_PlaybackMode.LoopPlaylist :
 						(pb.mode === M2D_PlaybackMode.LoopPlaylist) ? M2D_PlaybackMode.LoopOne :
@@ -949,7 +1043,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 	},
 	{
 		name: "kingassripper",
-		aliases: ["kap"],
+		aliases: ["kar"],
 		parameters: [],
 		description: "King Ass Ripper",
 		category: M2D_CATEGORIES.playlist,
@@ -963,6 +1057,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 				const kingassripperURL = "https://www.youtube.com/watch?v=5MelGCO8Gkk";
 
 				return M2D_CommandUtils.getCommand("odtwórz")
+					.then((_cmd) => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((val) => {
+							if(val) {
+								return Promise.resolve(_cmd);
+							} else return Promise.reject({
+								type: M2D_EErrorTypes.Voice,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channelId,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+					)
 					.then((_cmd) => M2D_CommandUtils.invokeCommand(_cmd, [ { name: "url", value: kingassripperURL } ], suppParameters))
 					.then(() => res())
 					.catch((err) => rej(err));	
