@@ -626,7 +626,7 @@ const M2D_CommandUtils = {
 				const paramsString = (parameters.length > 0) ? parameters.map((v) => `[${v.name}${(!v.required) ? "?" : ""}]`).join(" ") : "";
 				const paramsExplanations = (parameters.length > 0) ? `${parameters.map((v) => `\`${v.name}\` (${v.label}) - ${v.description}${(v.required) ? " **WYMAGANY**" : ""}`).join("\n\n")}\n` : `\`-\`\n`;
 
-				const outputMsg = `\`${name}\`\n**Aliasy**: ${(aliases.length > 0) ? aliases.join(", ") : "Brak"}\n${(printCategory) ? `**Kategoria**: ${category.label}\n` : ""}**Opis**: ${description}\n**Użycie**:\n\`${prefix} ${aliasesString} ${paramsString}\`\n${(parameters.length > 0) ? `\n${paramsExplanations}\n` : "\n"}`;
+				const outputMsg = `\`${name}\`\n**Aliasy**: ${(aliases.length > 0) ? aliases.join(", ") : "Brak"}\n${(printCategory) ? `**Kategoria**: ${category.label}\n` : ""}**Opis**: ${description}\n**Użycie**:\n\`${prefix}${aliasesString} ${paramsString}\`\n${(parameters.length > 0) ? `\n${paramsExplanations}\n` : "\n"}`;
 				
 				res(outputMsg);
 			})
