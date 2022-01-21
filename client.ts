@@ -285,8 +285,8 @@ const M2D_ClientUtils = {
 	},
 	parseMessage: (messageContent: string, prefix: string) => new Promise<M2D_IClientParsedMessage>((res, rej) => {
 		if(messageContent.startsWith(prefix)) {
-			if(messageContent.length >= `${prefix} `.length) {
-				const fullCommand = messageContent.replace(`${prefix} `, "");
+			if(messageContent.length >= `${prefix}`.length) {
+				const fullCommand = messageContent.replace(`${prefix}`, "");
 				const paramRegex = /(?:[^\s"]+|"[^"]*")+/g;
 				const markdownRegex = /^md"(.*)"$/g;
 
