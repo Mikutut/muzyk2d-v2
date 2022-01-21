@@ -200,7 +200,7 @@ const M2D_YTAPIUtils = {
 							} as M2D_IUnknownError))		
 						)
 				]))
-				.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumien audio wideo o URL "${url}"!`)
+				.then((stream: Readable) => M2D_LogUtils.logMessage(`success`, `Uzyskano strumień audio wideo o URL "${url}"!`)
 					.then(() => {
 						const sId = nanoid(6);
 						const streamData = {

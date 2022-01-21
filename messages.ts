@@ -198,6 +198,11 @@ const M2D_MESSAGES: M2D_IMessages = {
 		description: `**Nie znajdujesz się na żadnym kanale głosowym**, więc Muzyk2D **nie wie, gdzie ma dołączyć**!`,
 		type: "error"
 	},
+	"voiceUserNotInTheSameVoiceChannel": {
+		type: "error",
+		title: "Błąd!",
+		description: `**Nie znajdujesz się na tym samym kanale głosowym, co Muzyk2D**, więc nie możesz w tym momencie wywołać tej komendy!`
+	},
 	"voiceClientNotInVoiceChannel": {
 		type: "error",
 		title: "Błąd!",

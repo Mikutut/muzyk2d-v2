@@ -203,13 +203,22 @@ const M2D_ClientUtils = {
 										};
 
 										M2D_ClientUtils.executeMessageCommand(parsedMessage, suppParameters)
-											.catch((err: M2D_Error) => M2D_MessagesUtils.getMessage("clientInvokingCommandError", [ parsedMessage.fullCommand, M2D_GeneralUtils.getErrorString(err), JSON.stringify(err.data) ])
-												.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-													embeds: [
-														msg	
-													]
-												}))
-											)
+											.catch((err: M2D_Error) => {
+												switch(M2D_GeneralUtils.getErrorString(err)) {
+													case "VOICE_USER_NOT_IN_THE_SAME_VOICE_CHANNEL": {
+														return M2D_MessagesUtils.getMessage("voiceUserNotInTheSameVoiceChannel")
+															.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, { embeds: [ msg ] }));
+													}
+													break;
+													default:
+														return M2D_MessagesUtils.getMessage("clientInvokingCommandError", [ parsedMessage.fullCommand, M2D_GeneralUtils.getErrorString(err), JSON.stringify(err.data) ])
+														.then((msg) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+															embeds: [
+																msg	
+															]
+														}));
+												}
+											})
 											.catch((err: M2D_Error) => M2D_LogUtils.logMultipleMessages(`error`, [ `Wystąpił błąd podczas wysyłania wiadomości zwrotnej o błędzie!`, `Oznaczenie błędu: "${M2D_GeneralUtils.getErrorString(err)}"`, `Dane o błędzie: "${JSON.stringify(err.data)}"` ]));
 									})
 								)
