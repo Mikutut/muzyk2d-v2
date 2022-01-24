@@ -12,6 +12,7 @@
 	import { M2D_EYTAPIErrorSubtypes, M2D_YTAPIError, M2D_YTAPIUtils } from "./youtubeapi";
 	import { M2D_EMessagesErrorSubtypes, M2D_MessagesError, M2D_MessagesUtils } from "./messages";
 	import { M2D_EStatusErrorSubtypes, M2D_StatusError, M2D_StatusUtils } from "./status";
+import { stringify } from "querystring";
 //#endregion
 
 //#region Types
@@ -23,6 +24,10 @@
 		imageURL?: string;
 		thumbnailURL?: string;
 		fields?: EmbedField[];
+	};
+	interface M2D_IParsedEmoji {
+		name: string;
+		id: string;
 	};
 	const enum M2D_EErrorTypes {
 		General = "GENERAL",
@@ -74,7 +79,11 @@
 	//#region Error types
 		const enum M2D_EGeneralErrorSubtypes {
 			NoEnvVariable = "NO_ENV_VARIABLE",
-			DevModeUserNotAllowed = "DEV_MODE_USER_NOT_ALLOWED"
+			DevModeUserNotAllowed = "DEV_MODE_USER_NOT_ALLOWED",
+			ChannelReferenceParsingFailed = "CHANNEL_REFERENCE_PARSING_FAILED",
+			UserReferenceParsingFailed = "USER_REFERENCE_PARSING_FAILED",
+			RoleReferenceParsingFailed = "ROLE_REFERENCE_PARSING_FAILED",
+			EmojiReferenceParsingFailed = "EMOJI_REFERENCE_PARSING_FAILED"
 		};
 		interface M2D_IUnknownError extends M2D_IError {
 			data: {
@@ -91,15 +100,43 @@
 				userId: string;
 			}
 		};
+		interface M2D_IGeneralChannelReferenceParsingFailedError extends M2D_IError {
+			data: {
+				reference: string;
+			}
+		};
+		interface M2D_IGeneralUserReferenceParsingFailedError extends M2D_IError {
+			data: {
+				reference: string;
+			}
+		};
+		interface M2D_IGeneralRoleReferenceParsingFailedError extends M2D_IError {
+			data: {
+				reference: string;
+			}
+		};
+		interface M2D_IGeneralEmojiReferenceParsingFailedError extends M2D_IError {
+			data: {
+				reference: string;
+			}
+		};
 
 		type M2D_GeneralError = M2D_IGeneralNoEnvVariableError |
-			M2D_IGeneralDevModeUserNotAllowedError;
+			M2D_IGeneralDevModeUserNotAllowedError |
+			M2D_IGeneralChannelReferenceParsingFailedError |
+			M2D_IGeneralUserReferenceParsingFailedError |
+			M2D_IGeneralRoleReferenceParsingFailedError |
+			M2D_IGeneralEmojiReferenceParsingFailedError;
 	//#endregion
 //#endregion
 
 dotenvConfig();
 
 const M2D_DEV_ALLOWED_USERS: string[] = [];
+const channelReferenceRegex = /^<#(\d+)>$/;
+const userReferenceRegex = /^<@!(\d+)>$/;
+const roleReferenceRegex = /^<@&(\d+)>$/;
+const emojiReferenceRegex = /^<(:\S+:)(\d+)>$/;
 
 const M2D_GeneralUtils = {
 	getMuzyk2DVersion: () => M2DVersion,
@@ -149,6 +186,93 @@ const M2D_GeneralUtils = {
 		
 		return embed;
 	},
+	parseChannelIdFromReference: (ref: string) => new Promise<string>((res, rej) => {
+		if(channelReferenceRegex.test(ref)) {
+			const match = channelReferenceRegex.exec(ref);
+
+			if(match !== null) {
+				res(match[1]);
+			} else rej({
+				type: M2D_EErrorTypes.General,
+				subtype: M2D_EGeneralErrorSubtypes.ChannelReferenceParsingFailed,
+				data: {
+					reference: ref
+				}
+			} as M2D_IGeneralChannelReferenceParsingFailedError);
+		} else rej({
+			type: M2D_EErrorTypes.General,
+			subtype: M2D_EGeneralErrorSubtypes.ChannelReferenceParsingFailed,
+			data: {
+				reference: ref
+			}
+		} as M2D_IGeneralChannelReferenceParsingFailedError);
+	}),	
+	parseUserIdFromReference: (ref: string) => new Promise<string>((res, rej) => {
+		if(userReferenceRegex.test(ref)) {
+			const match = userReferenceRegex.exec(ref);
+
+			if(match !== null) {
+				res(match[1]);
+			} else rej({
+				type: M2D_EErrorTypes.General,
+				subtype: M2D_EGeneralErrorSubtypes.UserReferenceParsingFailed,
+				data: {
+					reference: ref
+				}
+			} as M2D_IGeneralUserReferenceParsingFailedError);
+		}	else rej({
+			type: M2D_EErrorTypes.General,
+			subtype: M2D_EGeneralErrorSubtypes.UserReferenceParsingFailed,
+			data: {
+				reference: ref
+			}
+		} as M2D_IGeneralUserReferenceParsingFailedError);
+	}),
+	parseRoleIdFromReference: (ref: string) => new Promise<string>((res, rej) => {
+		if(roleReferenceRegex.test(ref)) {
+			const match = roleReferenceRegex.exec(ref);
+
+			if(match !== null) {
+				res(match[1]);
+			} else rej({
+				type: M2D_EErrorTypes.General,
+				subtype: M2D_EGeneralErrorSubtypes.RoleReferenceParsingFailed,
+				data: {
+					reference: ref
+				}
+			} as M2D_IGeneralRoleReferenceParsingFailedError);
+		}	else rej({
+			type: M2D_EErrorTypes.General,
+			subtype: M2D_EGeneralErrorSubtypes.RoleReferenceParsingFailed,
+			data: {
+				reference: ref
+			}
+		} as M2D_IGeneralRoleReferenceParsingFailedError);
+	}),
+	parseEmojiFromReference: (ref: string) => new Promise<M2D_IParsedEmoji>((res, rej) => {
+		if(emojiReferenceRegex.test(ref)) {
+			const match = emojiReferenceRegex.exec(ref);
+
+			if(match !== null) {
+				res({
+					name: match[1],
+					id: match[2]
+				});
+			} else rej({
+				type: M2D_EErrorTypes.General,
+				subtype: M2D_EGeneralErrorSubtypes.EmojiReferenceParsingFailed,
+				data: {
+					reference: ref
+				}
+			} as M2D_IGeneralEmojiReferenceParsingFailedError);
+		} else rej({
+			type: M2D_EErrorTypes.General,
+			subtype: M2D_EGeneralErrorSubtypes.EmojiReferenceParsingFailed,
+			data: {
+				reference: ref
+			}
+		} as M2D_IGeneralEmojiReferenceParsingFailedError);
+	}),
 	exitHandler: (exitCode: number) => {
 		M2D_LogUtils.logMessage("info", "Trwa wyłączanie Muzyka2D...")
 			.then(() => M2D_ConfigUtils.configExitHandler()
@@ -342,6 +466,7 @@ export type {
 	M2D_IGeneralNoEnvVariableError,
 	M2D_IGeneralDevModeUserNotAllowedError,
 	M2D_IEmbedOptions,
+	M2D_IParsedEmoji,
 	M2D_EmbedType,
 	M2D_IUnknownError,
 	M2D_Error

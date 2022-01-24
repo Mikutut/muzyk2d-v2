@@ -35,6 +35,7 @@
 			MissingGuild = "MISSING_GUILD",
 			MissingChannel = "MISSING_CHANNEL",
 			MissingGuildChannel = "MISSING_GUILD_CHANNEL",
+			MissingGuildChannelMessage = "MISSING_GUILD_CHANNEL_MESSAGE",
 			MissingUser = "MISSING_USER",
 			MissingGuildMember = "MISSING_GUILD_MEMBER",
 			InsufficientPermissions = "INSUFFICIENT_PERMISSIONS",
@@ -65,6 +66,13 @@
 		interface M2D_IClientMissingChannelError extends M2D_IError {
 			data: {
 				channelId: string;
+			}
+		};
+		interface M2D_IClientMissingGuildChannelMessageError extends M2D_IError {
+			data: {
+				guildId: string;
+				channelId: string;
+				messageId: string;
 			}
 		};
 		interface M2D_IClientMissingGuildChannelError extends M2D_IError {
@@ -116,6 +124,7 @@
 			M2D_IClientMissingGuildError |
 			M2D_IClientMissingChannelError |
 			M2D_IClientMissingGuildChannelError |
+			M2D_IClientMissingGuildChannelMessageError |
 			M2D_IClientMissingUserError |
 			M2D_IClientMissingGuildMemberError |
 			M2D_IClientInsufficientPermissionsError |
@@ -519,7 +528,7 @@ const M2D_ClientUtils = {
 			})
 			.catch((err) => rej(err));	
 	}),
-	sendMessageInGuild: (guildId: string, channelId: string | undefined, message: MessageOptions, deleteMsg?: boolean) => new Promise<void>((res, rej) => {
+	sendMessageInGuild: (guildId: string, channelId: string | undefined, message: MessageOptions, deleteMsg?: boolean, deleteTimeout?: number) => new Promise<void>((res, rej) => {
 		M2D_ConfigUtils.getConfigValue("autoDeleteMessageReplies", guildId)
 			.then((val) => {
 				const autoDeleteMessageReplies = (val === "true") ? true : false;
@@ -542,7 +551,7 @@ const M2D_ClientUtils = {
 														M2D_ClientUtils.setLastUsedChannel(guildId, channelId)	
 															.then(() => {
 																if(autoDeleteMessageReplies || deleteMsg) {
-																	M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+																	M2D_GeneralUtils.delay((deleteTimeout ?? autoDeleteMessageRepliesTime) * 1000)
 																		.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 																		.then(() => msg.delete())
 																		.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
@@ -663,7 +672,7 @@ const M2D_ClientUtils = {
 			})
 			.catch((err) => rej(err));	
 	}),
-	sendMessageReplyInGuild: (orgMessage: Message<boolean>, message: MessageOptions, deleteMsg?: boolean) => new Promise<void>((res, rej) => {
+	sendMessageReplyInGuild: (orgMessage: Message<boolean>, message: MessageOptions, deleteMsg?: boolean, deleteTimeout?: number) => new Promise<void>((res, rej) => {
 		const channel = orgMessage.channel;
 		const guild = orgMessage.guild as Guild;
 
@@ -687,7 +696,7 @@ const M2D_ClientUtils = {
 											M2D_ClientUtils.setLastUsedChannel(guild.id, channel.id)
 												.then(() => {
 													if(autoDeleteMessageReplies || deleteMsg) {
-														M2D_GeneralUtils.delay(autoDeleteMessageRepliesTime * 1000)
+														M2D_GeneralUtils.delay((deleteTimeout ?? autoDeleteMessageRepliesTime) * 1000)
 															.then(() => M2D_LogUtils.logMessage(`info`, `Usuwanie odpowiedzi...`))
 															.then(() => msg.delete())
 															.then(() => M2D_LogUtils.logMessage(`success`, `Usunięto odpowiedź!`))
@@ -857,6 +866,7 @@ const M2D_ClientUtils = {
 		M2D_IClientMissingGuildError,
 		M2D_IClientMissingChannelError,
 		M2D_IClientMissingGuildChannelError,
+		M2D_IClientMissingGuildChannelMessageError,
 		M2D_IClientMissingUserError,
 		M2D_IClientMissingGuildMemberError,
 		M2D_IClientInsufficientPermissionsError,

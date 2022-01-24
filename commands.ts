@@ -1,9 +1,9 @@
 //#region Imports
-	import { Message, Channel, Guild, User, PartialTextBasedChannel, GuildMember, TextChannel, Collection } from "discord.js";
+	import { Message, Channel, Guild, User, PartialTextBasedChannel, GuildMember, TextChannel, ThreadChannel, Collection, GuildBasedChannel, TextBasedChannel } from "discord.js";
 	import { M2D_LogUtils } from "./log";
-	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes } from "./utils";
+	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes, M2D_EGeneralErrorSubtypes } from "./utils";
 	import { nanoid } from "nanoid";
-	import { M2D_ClientUtils } from "./client";
+	import { M2D_ClientUtils, M2D_IClientMissingGuildChannelMessageError, M2D_EClientErrorSubtypes } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_MessagesUtils } from "./messages";
 //#endregion
@@ -26,7 +26,7 @@
 	interface M2D_ICommandSuppParameters {
 		message: Message<boolean>;
 		guild: Guild;
-		channel: Channel;
+		channel: TextBasedChannel;
 		user: User;
 	}
 	type M2D_CommandHandler = (cmd: M2D_ICommand, parameters: M2D_ICommandParameter[], suppParameters?: M2D_ICommandSuppParameters) => Promise<void>;
@@ -270,50 +270,11 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
 			rej(error);
 		})
-	}
-];
-const M2D_DEV_COMMANDS: M2D_ICommand[] = [
-	{
-		name: "isDevMode",
-		aliases: ["devmode"],
-		category: M2D_HIDDEN_CATEGORIES.dev,
-		description: "Wyświetla status trybu deweloperskiego",
-		parameters: [],
-		active: true,
-		developerOnly: true,
-		chatInvokable: true,
-		isUtilCommand: false,
-		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
-			if(suppParameters) {
-				const { message, guild, channel, user } = suppParameters;
-
-				M2D_GeneralUtils.isDevModeEnabled()
-					.then((val) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
-						embeds: [
-							M2D_GeneralUtils.embedBuilder({
-								type: "info",
-								description: (val) ? "tak" : "nie"
-							})
-						]
-					}))
-					.then(() => res())
-					.catch((err) => rej(err));
-			} else rej({
-				type: M2D_EErrorTypes.Commands,
-				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
-				data: {
-					commandName: cmd.name
-				}
-			} as M2D_ICommandsMissingSuppParametersError);
-		}),
-		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
-			rej(error);
-		})
 	},
 	{
 		name: "everyone",
 		aliases: ["ee"],
-		category: M2D_HIDDEN_CATEGORIES.dev,
+		category: M2D_HIDDEN_CATEGORIES.utility,
 		description: "@everyone prank",
 		parameters: [
 			{
@@ -397,6 +358,196 @@ const M2D_DEV_COMMANDS: M2D_ICommand[] = [
 						return Promise.allSettled(promisesToHandle)
 							.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" })).then(() => res()))	
 					})
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			rej(error);
+		})
+	},
+	{
+		name: "powiedz",
+		aliases: ["say", "msg"],
+		category: M2D_CATEGORIES.utility,
+		description: "Wypowiedz coś ustami bota",
+		parameters: [
+			{
+				name: "message",
+				label: "wiadomość",
+				description: "Wiadomość do wypowiedzenia",
+				required: true
+			},
+			{
+				name: "channelId",
+				label: "idKanału",
+				description: "ID kanału, na który wysłać wiadomość (domyślnie wykorzystuje kanał, na którym wywołano komendę)",
+				required: false
+			}
+		],
+		active: true,
+		developerOnly: false,
+		isUtilCommand: true,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				const msgChannel = channel;
+
+				M2D_CommandUtils.getParameterValue(parameters, "message")
+					.then((msg: string) => M2D_CommandUtils.getParameterValue(parameters, "channelId")
+						.then((channelId: string) => M2D_ClientUtils.getGuildChannelFromId(guild.id, channelId)
+							.then((ch: GuildBasedChannel) => {
+								if(ch.isText()) {
+									if(ch.type === "GUILD_TEXT") {
+										return ch as TextChannel;
+									} else if(ch.type === "GUILD_PUBLIC_THREAD") {
+										return ch as ThreadChannel;
+									}
+									else throw new Error();
+								}
+								else throw new Error();
+							})
+						)
+						.catch(() => msgChannel)
+						.then((ch: TextBasedChannel) => M2D_ClientUtils.sendMessageInGuild(guild.id, ch.id, { content: msg }, false))
+						.then(() => M2D_GeneralUtils.ignoreError(
+							message.delete()
+						))
+						.then(() => res())
+						.catch((err) => Promise.reject(err))
+					)
+					.catch((err) => rej(err));	
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			switch(M2D_GeneralUtils.getErrorString(error)) {
+				default:
+					rej(error);	
+			}
+		})
+	},
+	{
+		name: "odpowiedz",
+		aliases: ["odp"],
+		description: "Odpowiedz na wiadomość",
+		parameters: [
+			{
+				name: "messageId",
+				label: "idWiadomosci",
+				description: "ID wiadomości, na którą ma zostać wysłana odpowiedź",
+				required: true
+			},
+			{
+				name: "message",
+				label: "wiadomość",
+				description: "Wiadomość",
+				required: true
+			},
+			{
+				name: "channelId",
+				label: "idKanalu",
+				description: "ID kanału",
+				required: false
+			}
+		],
+		category: M2D_CATEGORIES.utility,
+		active: true,
+		developerOnly: false,
+		isUtilCommand: true,
+		chatInvokable: true,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				M2D_CommandUtils.getParameterValue(parameters, "channelId")
+					.then((chId: string) => M2D_ClientUtils.getGuildChannelFromId(guild.id, chId)
+						.then((ch: GuildBasedChannel) => {
+							if(ch.isText()) {
+								if(ch.type === "GUILD_TEXT") {
+									return ch as TextChannel;
+								} else if (ch.type === "GUILD_PUBLIC_THREAD") {
+									return ch as ThreadChannel;
+								} else throw new Error();
+							} else throw new Error();
+						})
+					)
+					.catch(() => channel)
+					.then((ch: TextBasedChannel) => M2D_CommandUtils.getParameterValue(parameters, "messageId")
+						.then((msgId: string) => ch.messages.fetch(msgId)
+							.catch(() => Promise.reject({
+								type: M2D_EErrorTypes.Client,
+								subtype: M2D_EClientErrorSubtypes.MissingGuildChannelMessage,
+								data: {
+									guildId: guild.id,
+									channelId: ch.id,
+									messageId: msgId
+								}
+							} as M2D_IClientMissingGuildChannelMessageError))
+						)
+						.then((msg: Message<boolean>) => M2D_CommandUtils.getParameterValue(parameters, "message")
+							.then((reply: string) => M2D_ClientUtils.sendMessageReplyInGuild(msg, { content: reply }, false))
+							.then(() => M2D_GeneralUtils.ignoreError(
+								message.delete()
+							))
+							.then(() => res())
+						)
+					)
+					.catch((err) => rej(err));
+
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: cmd.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			switch(M2D_GeneralUtils.getErrorString(error)) {
+				default:
+					rej(error);
+			}
+		})
+	}
+];
+const M2D_DEV_COMMANDS: M2D_ICommand[] = [
+	{
+		name: "isDevMode",
+		aliases: ["devmode"],
+		category: M2D_HIDDEN_CATEGORIES.dev,
+		description: "Wyświetla status trybu deweloperskiego",
+		parameters: [],
+		active: true,
+		developerOnly: true,
+		chatInvokable: true,
+		isUtilCommand: false,
+		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const { message, guild, channel, user } = suppParameters;
+
+				M2D_GeneralUtils.isDevModeEnabled()
+					.then((val) => M2D_ClientUtils.sendMessageReplyInGuild(message, {
+						embeds: [
+							M2D_GeneralUtils.embedBuilder({
+								type: "info",
+								description: (val) ? "tak" : "nie"
+							})
+						]
+					}))
+					.then(() => res())
+					.catch((err) => rej(err));
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
 				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
