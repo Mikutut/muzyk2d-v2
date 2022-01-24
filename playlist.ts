@@ -464,7 +464,7 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 	},
 	{
 		name: "wyczyśćPlaylistę",
-		aliases: ["wp"],
+		aliases: ["c"],
 		category: M2D_CATEGORIES.playlist,
 		description: "Czyści playlistę",
 		parameters: [],
@@ -514,7 +514,7 @@ const M2D_PLAYLIST_COMMANDS: M2D_ICommand[] = [
 	},
 	{
 		name: "wyświetlPlaylistę",
-		aliases: ["w", "poka"],
+		aliases: ["w", "poka", "pl"],
 		category: M2D_CATEGORIES.playlist,
 		description: "Wyświetla zawartość playlisty",
 		parameters: [],

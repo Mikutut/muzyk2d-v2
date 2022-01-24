@@ -700,40 +700,21 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 							}
 						} as M2D_IClientMissingGuildMemberError)
 					})
-					.then(() => new Promise<void>((res2, rej2) => {
-						const u_GM = guild.members.cache.find((v) => v.user === user);
-						const c_GM = guild.me;
-
-						if(u_GM) {
-							if(c_GM) {
-								if(u_GM.voice.channel === c_GM.voice.channel) {
-									res2();
-								} else rej({
-									type: M2D_EErrorTypes.Playback,
-									subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
-									data: {
-										guildId: guild.id,
-										channelId: c_GM.voice.channel?.id,
-										userId: user.id
-									}
-								} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
-							} else rej({
-							type: M2D_EErrorTypes.Client,
-							subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
-							data: {
-								guildId: guild.id,
-								userId: M2D_ClientUtils.getClient().user?.id
-							}
-						} as M2D_IClientMissingGuildMemberError)
-						} else rej({
-							type: M2D_EErrorTypes.Client,
-							subtype: M2D_EClientErrorSubtypes.MissingGuildMember,
-							data: {
-								guildId: guild.id,
-								userId: user.id
-							}
-						} as M2D_IClientMissingGuildMemberError)
-					}))
+					.then(() => M2D_VoiceUtils.isUserConnectedToTheSameVoiceChannel(guild.id, user)
+						.then((isConnected) => {
+							if(isConnected) return Promise.resolve();
+							else rej({
+								type: M2D_EErrorTypes.Playback,
+								subtype: M2D_EVoiceErrorSubtypes.UserNotInTheSameVoiceChannel,
+								data: {
+									guildId: guild.id,
+									channelId: guild.me?.voice.channel?.id,
+									userId: user.id
+								}
+							} as M2D_IVoiceUserNotInTheSameVoiceChannelError);
+						})
+						.catch((err) => rej(err))
+					)
 					.then(() => M2D_CommandUtils.getParameterValue(parameters, "url")
 						.catch((err) => Promise.reject(err))
 						.then((url: string) => M2D_YTAPIUtils.parseUrl(url)
@@ -883,7 +864,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 	},
 	{
 		name: "stop",
-		aliases: ["s"],
+		aliases: [],
 		category: M2D_CATEGORIES.playback,
 		description: "Zatrzymuje odtwarzanie, cofając je do początku obecnego utworu",
 		parameters: [],
@@ -935,7 +916,7 @@ const M2D_PLAYBACK_COMMANDS: M2D_ICommand[] = [
 	},
 	{
 		name: "pomiń",
-		aliases: ["pp"],
+		aliases: ["s"],
 		category: M2D_CATEGORIES.playback,
 		description: "Pomija obecną pozycję na playliście i rozpoczyna odtwarzanie następnej",
 		parameters: [],

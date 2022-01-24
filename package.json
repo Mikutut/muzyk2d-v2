@@ -1,6 +1,6 @@
 {
     "name": "muzyk2d",
-    "version": "0.5.13",
+    "version": "0.6.0",
     "description": "Bot muzyczny na serwer Jak Będzie w 2D? - Sekcja Premium",
     "main": "index.js",
     "private": true,

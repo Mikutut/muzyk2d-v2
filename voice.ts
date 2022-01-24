@@ -549,7 +549,7 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "dołącz",
 		category: M2D_CATEGORIES.voice,
-		aliases: ["dł"],
+		aliases: ["dł", "j"],
 		parameters: [],
 		description: "Dołącza Muzyka2D na kanał głosowy, na którym znajduje się wywołujący komendę",
 		active: true,
@@ -621,7 +621,7 @@ const M2D_VOICE_COMMANDS: M2D_ICommand[] = [
 	{
 		name: "odłącz",
 		category: M2D_CATEGORIES.voice,
-		aliases: ["od", "wypierdalaj", "spierdalaj"],
+		aliases: ["od", "wypierdalaj", "spierdalaj", "dc"],
 		parameters: [],
 		description: "Odłącza Muzyka2D z obecnego kanału głosowego",
 		active: true,

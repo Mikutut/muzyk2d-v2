@@ -291,7 +291,7 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 			}
 		],
 		active: true,
-		developerOnly: true,
+		developerOnly: false,
 		chatInvokable: true,
 		isUtilCommand: true,
 		handler: (cmd, parameters, suppParameters) => new Promise<void>((res, rej) => {
