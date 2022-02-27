@@ -43,6 +43,11 @@ const M2D_MESSAGES: M2D_IMessages = {
 			title: `Błąd!`,
 			description: `Wystąpił błąd podczas **wykonywania komendy** \`%s\`.\n\n**Oznaczenie błędu**: \`%s\`\n**Dane o błędzie**: \`%s\``
 	},
+	"clientServerLeave": {
+		type: "info",
+		title: `Opuszczenie serwera`,
+		description: `Muzyk2D **opuści ten serwer** za **%s sekund**.\n\nPowód: %s`
+	},
 	"commandsHelpShowCommandsFromCategory": {
 		type: "info",
 		title: `Informacje o komendach z kategorii "%s"`,

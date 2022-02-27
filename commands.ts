@@ -3,7 +3,7 @@
 	import { M2D_LogUtils } from "./log";
 	import { M2D_ErrorSubtypes, M2D_IError, M2D_Error, M2D_GeneralUtils, M2D_EErrorTypes, M2D_EGeneralErrorSubtypes } from "./utils";
 	import { nanoid } from "nanoid";
-	import { M2D_ClientUtils, M2D_IClientMissingGuildChannelMessageError, M2D_EClientErrorSubtypes } from "./client";
+	import { M2D_ClientUtils, M2D_IClientMissingGuildChannelMessageError, M2D_EClientErrorSubtypes, M2D_ClientError, M2D_IClientDiscordAPIError } from "./client";
 	import { M2D_ConfigUtils } from "./config";
 	import { M2D_MessagesUtils } from "./messages";
 //#endregion
@@ -278,6 +278,12 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 		description: "@everyone prank",
 		parameters: [
 			{
+				name: "shadow",
+				label: "shadow",
+				description: "Should @everyone be hidden behind spoiler?",
+				required: true
+			},
+			{
 				name: "guildId",
 				label: "guildId",
 				description: "Guild ID",
@@ -298,66 +304,74 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
 
-				M2D_CommandUtils.getParameterValue(parameters, "guildId")
-					.then((guildId) => M2D_CommandUtils.getParameterValue(parameters, "channelIds")
-						.then((channelIds) => {
-							const splitChannelIds = channelIds.split(",");
-							const promisesToHandle: Promise<void>[] = [];
+				M2D_CommandUtils.getParameterValue(parameters, "shadow")
+					.then((shadow: string) => {
+						if(shadow === "true") {
+							return true;
+						} else return false;
+					})
+					.then((shadow: boolean) => M2D_CommandUtils.getParameterValue(parameters, "guildId")
+						.then((guildId) => M2D_CommandUtils.getParameterValue(parameters, "channelIds")
+							.then((channelIds) => {
+								const splitChannelIds = channelIds.split(",");
+								const promisesToHandle: Promise<void>[] = [];
+								
+								for(const chid of splitChannelIds) {
+									promisesToHandle.push(
+										M2D_ClientUtils.sendMessageInGuild(guildId, chid, { content: (shadow) ? "||@everyone||" : "@everyone" }, true)
+									);
+								}
+
+								return Promise.allSettled(promisesToHandle)
+									.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
+									.catch((err) => rej(err));
+							})
+							.catch(() => { 
+								const g = (M2D_ClientUtils.getClient()).guilds.cache.get(guildId);
+
+								if(g) {
+									const channels = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
+
+									if(channels.size > 0) {
+										const promisesToHandle: Promise<any>[] = [];
+										
+										for(const ch of channels) {
+											promisesToHandle.push(
+												M2D_ClientUtils.sendMessageInGuild(guildId, ch[1].id, { content: (shadow) ? "||@everyone||" : "@everyone" }, true)
+											);
+										}
+
+										return Promise.allSettled(promisesToHandle)
+											.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
+											.catch((err) => rej(err));
+									} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
+								} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
+							})
+						)
+						.catch(() => { 
+							const guilds = (M2D_ClientUtils.getClient()).guilds.cache;
+							const channels: Record<string, Collection<string, TextChannel>> = {};
+							const promisesToHandle: Promise<any>[] = [];
 							
-							for(const chid of splitChannelIds) {
-								promisesToHandle.push(
-									M2D_ClientUtils.sendMessageInGuild(guildId, chid, { content: "@everyone" }, true)
-								);
+							guilds.forEach((g) => {
+								channels[g.id] = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
+							});
+
+							for(const [i, v] of Object.entries(channels)) {
+								if(v.size > 0) {
+									for(const ch of v) {
+										promisesToHandle.push(
+											M2D_ClientUtils.sendMessageInGuild(ch[1].guild.id, ch[1].id, { content: "@everyone" }, true)
+										);
+									}
+								}
 							}
 
 							return Promise.allSettled(promisesToHandle)
-								.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
-								.catch((err) => rej(err));
-						})
-						.catch(() => { 
-							const g = (M2D_ClientUtils.getClient()).guilds.cache.get(guildId);
-
-							if(g) {
-								const channels = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
-
-								if(channels.size > 0) {
-									const promisesToHandle: Promise<any>[] = [];
-									
-									for(const ch of channels) {
-										promisesToHandle.push(
-											M2D_ClientUtils.sendMessageInGuild(guildId, ch[1].id, { content: "@everyone" }, true)
-										);
-									}
-
-									return Promise.allSettled(promisesToHandle)
-										.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Messages sent!" }, true)))
-										.catch((err) => rej(err));
-								} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
-							} else return M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" }));
+								.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" })).then(() => res()))	
 						})
 					)
-					.catch(() => { 
-						const guilds = (M2D_ClientUtils.getClient()).guilds.cache;
-						const channels: Record<string, Collection<string, TextChannel>> = {};
-						const promisesToHandle: Promise<any>[] = [];
-						
-						guilds.forEach((g) => {
-							channels[g.id] = g.channels.cache.filter((v) => v.type === "GUILD_TEXT" && v.permissionsFor(g.me as GuildMember).has(["SEND_MESSAGES"])) as Collection<string, TextChannel>;
-						});
-
-						for(const [i, v] of Object.entries(channels)) {
-							if(v.size > 0) {
-								for(const ch of v) {
-									promisesToHandle.push(
-										M2D_ClientUtils.sendMessageInGuild(ch[1].guild.id, ch[1].id, { content: "@everyone" }, true)
-									);
-								}
-							}
-						}
-
-						return Promise.allSettled(promisesToHandle)
-							.then(() => M2D_GeneralUtils.ignoreError(M2D_ClientUtils.sendMessageReplyInGuild(message, { content: "Couldn't send messages!" })).then(() => res()))	
-					})
+					.catch((err) => rej(err));
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
 				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
@@ -387,6 +401,12 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 				label: "idKanału",
 				description: "ID kanału, na który wysłać wiadomość (domyślnie wykorzystuje kanał, na którym wywołano komendę)",
 				required: false
+			},
+			{
+				name: "guildId",
+				label: "idSerwera",
+				description: "ID serwera, na który wysłać wiadomość (domyślnie wykorzystywany jest serwer, na którym wywołano komendę)",
+				required: false
 			}
 		],
 		active: true,
@@ -400,27 +420,34 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 				const msgChannel = channel;
 
 				M2D_CommandUtils.getParameterValue(parameters, "message")
-					.then((msg: string) => M2D_CommandUtils.getParameterValue(parameters, "channelId")
-						.then((channelId: string) => M2D_ClientUtils.getGuildChannelFromId(guild.id, channelId)
-							.then((ch: GuildBasedChannel) => {
-								if(ch.isText()) {
-									if(ch.type === "GUILD_TEXT") {
-										return ch as TextChannel;
-									} else if(ch.type === "GUILD_PUBLIC_THREAD") {
-										return ch as ThreadChannel;
+					.then((msg: string) => M2D_CommandUtils.getParameterValue(parameters, "guildId")
+						.then((gId: string) => M2D_ClientUtils.getGuildFromId(gId)
+							.then((g: Guild) => g)
+							.catch(() => guild)
+						)
+						.catch(() => guild)
+						.then((g: Guild) => M2D_CommandUtils.getParameterValue(parameters, "channelId")
+							.then((channelId: string) => M2D_ClientUtils.getGuildChannelFromId(g.id, channelId)
+								.then((ch: GuildBasedChannel) => {
+									if(ch.isText()) {
+										if(ch.type === "GUILD_TEXT") {
+											return ch as TextChannel;
+										} else if(ch.type === "GUILD_PUBLIC_THREAD") {
+											return ch as ThreadChannel;
+										}
+										else throw new Error();
 									}
 									else throw new Error();
-								}
-								else throw new Error();
-							})
+								})
+							)
+							.catch(() => msgChannel)
+							.then((ch: TextBasedChannel) => M2D_ClientUtils.sendMessageInGuild(g.id, ch.id, { content: msg }, false))
+							.then(() => M2D_GeneralUtils.ignoreError(
+								message.delete()
+							))
+							.then(() => res())
+							.catch((err) => Promise.reject(err))
 						)
-						.catch(() => msgChannel)
-						.then((ch: TextBasedChannel) => M2D_ClientUtils.sendMessageInGuild(guild.id, ch.id, { content: msg }, false))
-						.then(() => M2D_GeneralUtils.ignoreError(
-							message.delete()
-						))
-						.then(() => res())
-						.catch((err) => Promise.reject(err))
 					)
 					.catch((err) => rej(err));	
 			} else rej({
@@ -460,6 +487,12 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 				label: "idKanalu",
 				description: "ID kanału",
 				required: false
+			},
+			{
+				name: "guildId",
+				label: "idSerwera",
+				description: "ID serwera",
+				required: false
 			}
 		],
 		category: M2D_CATEGORIES.utility,
@@ -471,40 +504,47 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 			if(suppParameters) {
 				const { message, guild, channel, user } = suppParameters;
 
-				M2D_CommandUtils.getParameterValue(parameters, "channelId")
-					.then((chId: string) => M2D_ClientUtils.getGuildChannelFromId(guild.id, chId)
-						.then((ch: GuildBasedChannel) => {
-							if(ch.isText()) {
-								if(ch.type === "GUILD_TEXT") {
-									return ch as TextChannel;
-								} else if (ch.type === "GUILD_PUBLIC_THREAD") {
-									return ch as ThreadChannel;
+				M2D_CommandUtils.getParameterValue(parameters, "guildId")
+					.then((gId: string) => M2D_ClientUtils.getGuildFromId(gId)
+						.then((g: Guild) => g)
+						.catch(() => guild)
+					)
+					.catch(() => guild)
+					.then((g: Guild) => M2D_CommandUtils.getParameterValue(parameters, "channelId")
+						.then((chId: string) => M2D_ClientUtils.getGuildChannelFromId(g.id, chId)
+							.then((ch: GuildBasedChannel) => {
+								if(ch.isText()) {
+									if(ch.type === "GUILD_TEXT") {
+										return ch as TextChannel;
+									} else if (ch.type === "GUILD_PUBLIC_THREAD") {
+										return ch as ThreadChannel;
+									} else throw new Error();
 								} else throw new Error();
-							} else throw new Error();
-						})
-					)
-					.catch(() => channel)
-					.then((ch: TextBasedChannel) => M2D_CommandUtils.getParameterValue(parameters, "messageId")
-						.then((msgId: string) => ch.messages.fetch(msgId)
-							.catch(() => Promise.reject({
-								type: M2D_EErrorTypes.Client,
-								subtype: M2D_EClientErrorSubtypes.MissingGuildChannelMessage,
-								data: {
-									guildId: guild.id,
-									channelId: ch.id,
-									messageId: msgId
-								}
-							} as M2D_IClientMissingGuildChannelMessageError))
+							})
 						)
-						.then((msg: Message<boolean>) => M2D_CommandUtils.getParameterValue(parameters, "message")
-							.then((reply: string) => M2D_ClientUtils.sendMessageReplyInGuild(msg, { content: reply }, false))
-							.then(() => M2D_GeneralUtils.ignoreError(
-								message.delete()
-							))
-							.then(() => res())
+						.catch(() => channel)
+						.then((ch: TextBasedChannel) => M2D_CommandUtils.getParameterValue(parameters, "messageId")
+							.then((msgId: string) => ch.messages.fetch(msgId)
+								.catch(() => Promise.reject({
+									type: M2D_EErrorTypes.Client,
+									subtype: M2D_EClientErrorSubtypes.MissingGuildChannelMessage,
+									data: {
+										guildId: guild.id,
+										channelId: ch.id,
+										messageId: msgId
+									}
+								} as M2D_IClientMissingGuildChannelMessageError))
+							)
+							.then((msg: Message<boolean>) => M2D_CommandUtils.getParameterValue(parameters, "message")
+								.then((reply: string) => M2D_ClientUtils.sendMessageReplyInGuild(msg, { content: reply }, false))
+								.then(() => M2D_GeneralUtils.ignoreError(
+									message.delete()
+								))
+								.then(() => res())
+							)
 						)
-					)
-					.catch((err) => rej(err));
+						.catch((err) => rej(err))
+					);
 
 			} else rej({
 				type: M2D_EErrorTypes.Commands,
@@ -518,6 +558,87 @@ const M2D_UTIL_COMMANDS: M2D_ICommand[] = [
 			switch(M2D_GeneralUtils.getErrorString(error)) {
 				default:
 					rej(error);
+			}
+		})
+	},
+	{
+		name: `leaveServer`,
+		aliases: ['ls'],
+		category: M2D_HIDDEN_CATEGORIES.utility,
+		description: `Opuszcza serwer o podanym ID, w podanym czasie (w sekundach) i z podanego powodu.`,
+		parameters: [
+			{
+				name: `serverId`,
+				label: `idSerwera`,
+				description: `ID serwera`,
+				required: true
+			},
+			{
+				name: `time`,
+				label: `czas`,
+				description: `Czas, w jaki Muzyk2D opuści serwer (w sekundach)`,
+				required: true
+			},
+			{
+				name: `reason`,
+				label: `powód`,
+				description: `Powód, dla którego Muzyk2D opuści serwer`,
+				required: false
+			}
+		],
+		active: true,
+		developerOnly: false,
+		isUtilCommand: true,
+		chatInvokable: true,
+		handler: (command, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			if(suppParameters) {
+				const {message, guild, channel, user} = suppParameters;
+
+				M2D_CommandUtils.getParameterValue(parameters, "serverId")
+					.then((sId) => M2D_CommandUtils.getParameterValue(parameters, "time")
+						.then((t) => M2D_CommandUtils.getParameterValue(parameters, "reason")
+							.then((r) => r)
+							.catch(() => null)
+							.then((reason: string | null) => {
+								const r = reason ?? "**Nie podano**";
+								return M2D_LogUtils.logMultipleMessages(`info`, [ `GID: "${sId}" | ${user.tag} zainicjował wyjście z serwera`, `Powód: "${r}"` ])
+									.then(() => M2D_MessagesUtils.getMessage("clientServerLeave", [ t, r ])
+										.then((msg) => M2D_ClientUtils.sendMessageInGuild(sId, undefined, { embeds: [ msg ] }))
+										.finally(() => M2D_GeneralUtils.delay(parseInt(t, 10) * 1000))
+										.then(() => M2D_ClientUtils.getGuildFromId(sId))
+										.then((g) => g.leave()
+											.catch((err) => Promise.reject({
+												type: M2D_EErrorTypes.Client,
+												subtype: M2D_EClientErrorSubtypes.DiscordAPI,
+												data: {
+													errorMessage: err.message
+												}
+											} as M2D_IClientDiscordAPIError))
+										)
+										.then((g) => M2D_LogUtils.logMultipleMessages(`info`, [ `GID: "${g.id}" | Opuszczono "${g.name}"`, `Zainicjowano przez: "${user.tag}"`, `Powód: "${r}"` ])
+											.then(() => M2D_GeneralUtils.ignoreError(
+												M2D_ClientUtils.sendMessageReplyInGuild(message, { content: `Pomyślnie opuszczono **${g.name} (${g.id})**!` })
+											))
+										)
+									);
+							})
+						)
+					)
+					.then(() => res())
+					.catch((err) => rej(err));
+			} else rej({
+				type: M2D_EErrorTypes.Commands,
+				subtype: M2D_ECommandsErrorSubtypes.MissingSuppParameters,
+				data: {
+					commandName: command.name
+				}
+			} as M2D_ICommandsMissingSuppParametersError);
+		}),
+		errorHandler: (error, command, parameters, suppParameters) => new Promise<void>((res, rej) => {
+			switch(M2D_GeneralUtils.getErrorString(error)) {
+				default: {
+					rej(error);
+				}
 			}
 		})
 	}
